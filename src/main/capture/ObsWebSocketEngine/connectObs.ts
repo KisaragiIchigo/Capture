@@ -1,6 +1,7 @@
 import { EventSubscription, OBSWebSocket } from 'obs-websocket-js'
 import { createLogger } from '@main/lib/logger'
 import { CaptureEngineError } from '../CaptureEngine'
+import { describeObsExit, hasObsExited, type ObsProcessHandle } from './obsProcess'
 
 const log = createLogger('obs-connect')
 
@@ -25,13 +26,27 @@ function delay(ms: number): Promise<void> {
  * 起動直後の OBS は WebSocket サーバの待ち受けまで数秒かかる。
  * 接続拒否は正常な途中経過なので、上限まで黙って叩き続ける。
  */
-export async function connectObs(port: number, password: string): Promise<OBSWebSocket> {
+export async function connectObs(handle: ObsProcessHandle): Promise<OBSWebSocket> {
   const obs = new OBSWebSocket()
-  const url = `ws://127.0.0.1:${port}`
+  const url = `ws://127.0.0.1:${handle.port}`
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    /*
+     * 待っている相手がもういない場合がある。落ちたプロセスをつなぎに行っても、
+     * 待ち時間を使い切ったあとに「接続できませんでした」と言うだけになる。
+     * 起動できなかったことと、つながらないことは別の話として伝える。
+     */
+    if (hasObsExited(handle)) {
+      log.error('接続を待っている間に OBS が終了しました', {
+        attempt,
+        code: handle.process.exitCode,
+        signal: handle.process.signalCode
+      })
+      throw new CaptureEngineError(describeObsExit(handle))
+    }
+
     try {
-      await obs.connect(url, password, {
+      await obs.connect(url, handle.password, {
         eventSubscriptions:
           EventSubscription.General | EventSubscription.Outputs | EventSubscription.Inputs,
         rpcVersion: 1

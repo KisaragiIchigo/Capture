@@ -10,7 +10,7 @@
  *   node scripts/fetch-engine.mjs --force  … 取得済みでも取り直す
  */
 import { createWriteStream, existsSync } from 'node:fs'
-import { mkdir, rm, rename, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, rm, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
@@ -32,6 +32,53 @@ const FALLBACK = {
 }
 
 const force = process.argv.includes('--force')
+
+/**
+ * OBS の実行に必要な Visual C++ ランタイム。
+ *
+ * OBS 本体は Visual C++ でビルドされている。公式のインストーラはランタイムを一緒に入れるが、
+ * 配布されているポータブル版の zip には入っていない。開発に使う PC には他のアプリが入れた
+ * 同じものが既にあるため手元では気づけず、まっさらな PC でだけ「起動しない」形で表面化する。
+ *
+ * 実行ファイルと同じ場所へ置くと Windows はそちらを先に読む（app-local deployment）。
+ * これで、導入先の PC に何も入っていなくても OBS が動く。
+ */
+const RUNTIME_DLLS = [
+  'vcruntime140.dll',
+  'vcruntime140_1.dll',
+  'msvcp140.dll',
+  'msvcp140_1.dll',
+  'msvcp140_2.dll',
+  'concrt140.dll'
+]
+
+/** ランタイムを実行ファイルの隣へ複製する。すでにある版は上書きしない。 */
+async function bundleRuntime(root) {
+  const system32 = join(process.env.SystemRoot ?? 'C:\Windows', 'System32')
+  const target = join(root, 'bin', '64bit')
+
+  const copied = []
+  const missing = []
+
+  for (const dll of RUNTIME_DLLS) {
+    if (existsSync(join(target, dll))) continue
+
+    const from = join(system32, dll)
+    if (!existsSync(from)) {
+      missing.push(dll)
+      continue
+    }
+
+    await copyFile(from, join(target, dll))
+    copied.push(dll)
+  }
+
+  if (copied.length > 0) console.log(`  ランタイムを同梱しました: ${copied.join(', ')}`)
+  if (missing.length > 0) {
+    console.warn(`  この PC に見つからず同梱できませんでした: ${missing.join(', ')}`)
+    console.warn('  導入先の PC に Visual C++ 再頒布可能パッケージが無いと、エンジンが起動しません。')
+  }
+}
 
 /** 展開直後のファイルは、ウイルス対策ソフトのスキャンなどで一時的に掴まれていることがある。 */
 const LOCK_RETRIES = 12
@@ -169,6 +216,8 @@ async function main() {
 
   if (!force && existsSync(executable)) {
     console.log('キャプチャエンジンは取得済みです。取り直す場合は --force を付けてください。')
+    // 取得済みでも、ランタイムが揃っていなければここで補う。
+    await bundleRuntime(engineRoot)
     return
   }
 
@@ -186,6 +235,8 @@ async function main() {
 
     // ポータブル指定が無いと、OBS は利用者の既存設定を読み書きしてしまう。
     await writeFile(join(staging, 'portable_mode.txt'), '', 'utf8')
+
+    await bundleRuntime(staging)
 
     if (!existsSync(join(staging, 'bin', '64bit', 'obs64.exe'))) {
       throw new Error('展開後に実行ファイルが見つかりませんでした。アーカイブの構成が想定と異なります。')

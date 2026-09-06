@@ -5,6 +5,7 @@ import { createLogger } from '@main/lib/logger'
 import { obsBinDir, obsExecutable, obsPortableMarker } from '@main/lib/paths'
 import { CaptureEngineError } from '../CaptureEngine'
 import { writeWebSocketConfig } from './obsProfile'
+import { missingRuntimeDlls, VC_REDIST_URL } from './runtimeCheck'
 
 const log = createLogger('obs-process')
 
@@ -12,6 +13,32 @@ export interface ObsProcessHandle {
   process: ChildProcess
   port: number
   password: string
+}
+
+/**
+ * 起動したプロセスがもう生きていないか。
+ *
+ * 接続を待っている間に OBS が落ちていることがある。落ちた相手をつなぎに行っても、
+ * 待ち時間を使い切るまで「接続できない」としか分からない。
+ */
+export function hasObsExited(handle: ObsProcessHandle): boolean {
+  return handle.process.exitCode !== null || handle.process.signalCode !== null
+}
+
+/** 落ちた理由を、利用者が次の手を打てる文にする。 */
+export function describeObsExit(handle: ObsProcessHandle): string {
+  const code = handle.process.exitCode
+
+  /*
+   * 起動して即座に落ちる場合、ほとんどは必要なランタイムが無い。DLL が見つからない
+   * プロセスは自分のエラーを出す間もなく終了するため、こちらから理由を補う。
+   */
+  const missing = missingRuntimeDlls()
+  if (missing.length > 0) {
+    return `キャプチャエンジンの動作に必要な Visual C++ ランタイムが見つかりません（${missing.join(', ')}）。Microsoft の再頒布可能パッケージ（${VC_REDIST_URL}）をインストールしてから、もう一度お試しください。`
+  }
+
+  return `キャプチャエンジンが起動直後に終了しました（終了コード ${code ?? '不明'}）。グラフィックドライバーの更新をお試しください。`
 }
 
 /** 同梱 OBS が展開済みかを確認する。未配置なら UI に出せるメッセージを添えて投げる。 */
@@ -35,6 +62,18 @@ export function launchObs(port: number): ObsProcessHandle {
   if (!existsSync(obsPortableMarker())) {
     throw new CaptureEngineError(
       'キャプチャエンジンの構成が壊れています。このままでは、お使いの PC の OBS 設定を書き換えてしまう恐れがあるため起動できません。エンジンを取得し直してください。'
+    )
+  }
+
+  /*
+   * ランタイムが無ければ obs64.exe は起動できない。起動を試して接続を待つより、
+   * 先に見分けて理由を伝えるほうが早く、案内も正確になる。
+   */
+  const missing = missingRuntimeDlls()
+  if (missing.length > 0) {
+    log.error('Visual C++ ランタイムが見つかりません', { missing })
+    throw new CaptureEngineError(
+      `キャプチャエンジンの動作に必要な Visual C++ ランタイムが見つかりません（${missing.join(', ')}）。Microsoft の再頒布可能パッケージ（${VC_REDIST_URL}）をインストールしてから、もう一度お試しください。`
     )
   }
 
@@ -65,6 +104,11 @@ export function launchObs(port: number): ObsProcessHandle {
 
   child.on('error', (err) => log.error('OBS の起動に失敗しました', err))
   child.on('exit', (code, signal) => log.info('OBS が終了しました', { code, signal }))
+
+  // 接続を待つ前に落ちた場合、その事実だけは残しておかないと後から辿れない。
+  child.once('exit', (code, signal) => {
+    if (code !== 0) log.warn('OBS が異常終了しました', { code, signal })
+  })
 
   return { process: child, port, password }
 }

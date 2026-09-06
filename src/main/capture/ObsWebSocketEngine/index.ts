@@ -311,7 +311,7 @@ export class ObsWebSocketEngine implements CaptureEngine {
     this.handle = launchObs(port)
 
     this.setState('connecting')
-    this.obs = await connectObs(port, this.handle.password)
+    this.obs = await connectObs(this.handle)
     this.bootedEncoder = profile.video.encoder
 
     this.bindObsEvents(this.obs)
