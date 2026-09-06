@@ -17,7 +17,38 @@ function rethrowAsUserMessage(err: unknown, fallback: string): never {
     throw new Error(err.userMessage)
   }
   log.error(fallback, err)
-  throw new Error(fallback)
+  throw new Error(withEngineDetail(fallback, err))
+}
+
+/**
+ * エンジンが返した理由を日本語の文へ添える。
+ *
+ * 想定していない失敗を「できませんでした」の一言で畳んでしまうと、ログを取り出せる人以外は
+ * 何が起きたのか永久に分からない。原因は把握していなくても、エンジンが何と言ったかは伝わる。
+ * 見覚えのある言い回しは日本語にし、それ以外は原文のまま添える。
+ */
+function withEngineDetail(fallback: string, err: unknown): string {
+  const raw = err instanceof Error ? err.message.trim() : ''
+  if (!raw) return fallback
+
+  return `${fallback}${translateEngineMessage(raw) ?? `（エンジンの応答: ${raw}）`}`
+}
+
+/** よく出るものだけ、次の一手が分かる日本語にする。 */
+function translateEngineMessage(raw: string): string | null {
+  if (/No source was found/i.test(raw)) {
+    return '映像ソースが用意できていません。キャプチャ対象を選び直してください。'
+  }
+  if (/not ready/i.test(raw)) {
+    return 'エンジンがまだ操作を受け付けられません。少し待ってからお試しください。'
+  }
+  if (/already active|already recording/i.test(raw)) {
+    return 'すでに録画中です。'
+  }
+  if (/directory|path|permission|denied/i.test(raw)) {
+    return `保存先へ書き込めませんでした。保存先の設定をご確認ください。（${raw}）`
+  }
+  return null
 }
 
 export function registerCaptureHandlers(context: IpcContext): void {

@@ -63,6 +63,23 @@ const STATS_INTERVAL_MS = 1000
  * そのまま録画や静止画へ進むと、中身の無いファイルだけが残って何が起きたか分からなくなる。
  * 何も起きないより、理由の書かれた失敗のほうが立て直せる。
  */
+/**
+ * 保存先を書ける状態にする。
+ *
+ * 作れない場所を指したまま進むと、失敗するのは録画や撮影の側になり、
+ * 原因が保存先にあることが読めない。ここで理由ごと止める。
+ */
+function ensureWritableOutput(directory: string): void {
+  try {
+    mkdirSync(directory, { recursive: true })
+  } catch (err) {
+    throw new CaptureEngineError(
+      `保存先のフォルダを用意できませんでした（${directory}）。［一般］の設定で、書き込みできる場所を選び直してください。`,
+      err
+    )
+  }
+}
+
 function assertCaptureTarget(profile: CaptureProfile): void {
   if (profile.sourceKind === 'window' && !profile.sourceId) {
     throw new CaptureEngineError(
@@ -220,7 +237,7 @@ export class ObsWebSocketEngine implements CaptureEngine {
   async startRecording(profile: CaptureProfile): Promise<void> {
     assertCaptureTarget(profile)
     await this.applySource(profile)
-    mkdirSync(profile.outputDirectory, { recursive: true })
+    ensureWritableOutput(profile.outputDirectory)
 
     await this.requireObs().call('StartRecord')
     this.startStatsPolling()
@@ -255,7 +272,7 @@ export class ObsWebSocketEngine implements CaptureEngine {
   async takeScreenshot(profile: CaptureProfile): Promise<string> {
     assertCaptureTarget(profile)
     const obs = this.requireObs()
-    mkdirSync(profile.outputDirectory, { recursive: true })
+    ensureWritableOutput(profile.outputDirectory)
 
     const { format, jpegQuality } = profile.stillImage
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
