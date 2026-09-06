@@ -1,0 +1,103 @@
+{
+  "_readme": "プロジェクトスタイルマニフェスト。エージェントはUIに触れるすべてのタスクの冒頭でこれを読み、ここに無い色・フォント・質感を勝手に導入してはならない。変更はユーザー合意の上でこのファイルを更新し、changelogs.json に記録する。",
+  "meta": {
+    "project": "Capture",
+    "concept": "配信者と実況者のための Windows 画面/ゲーム録画ソフト。OBS のキャプチャエンジンを内部に隠し持ちながら、表に出るのは録画だけに特化した高密度なプロ機材コンソール UI。起動して 2 クリックで録れることを最優先する。",
+    "mood_keywords": [
+      "プロ機材",
+      "高密度",
+      "静謐",
+      "硬質",
+      "計測器"
+    ],
+    "created": "2026-09-05",
+    "updated": "2026-09-06"
+  },
+  "stack": {
+    "framework": "Electron + electron-vite + React + TypeScript",
+    "styling": "Tailwind CSS v3",
+    "ui_primitives": "Radix UI",
+    "motion": "Framer Motion（LazyMotion + m モジュール）",
+    "state": "Zustand",
+    "capture_engine": "obs-websocket 5.x 経由で同梱 OBS ポータブルを制御（CaptureEngine 抽象の背後に隠す）",
+    "_rule": "スタック変更はユーザーの明示指定のみ"
+  },
+  "palette": {
+    "base_bg": "#0b0f19",
+    "base_bg_alt": "#060d18",
+    "base_bg_deep": "#040812",
+    "surface": "bg-white/[0.02]",
+    "surface_raised": "bg-white/[0.035]",
+    "surface_deep": "bg-black/40",
+    "border": "border-white/[0.06]",
+    "border_subtle": "border-white/[0.04]",
+    "border_strong": "border-white/[0.10]",
+    "accent_gradient": "from-teal-600 via-emerald-600 to-emerald-700",
+    "accent_glow": "shadow-[0_0_15px_rgba(20,184,166,0.2)]",
+    "accent_badge": "bg-teal-500/10 text-teal-300",
+    "accent_line": "bg-teal-400/60",
+    "focus_ring": "focus:border-teal-500/50",
+    "tally_rec": "#f43f5e",
+    "tally_rec_glow": "shadow-[0_0_12px_rgba(244,63,94,0.55)]",
+    "tally_pause": "#f59e0b",
+    "danger": "bg-rose-500/10 border-rose-500/20 text-rose-300",
+    "warning": "bg-amber-500/10 border-amber-500/20 text-amber-300",
+    "success": "bg-emerald-500/10 border-emerald-500/20 text-emerald-300",
+    "text_primary": "text-slate-200",
+    "text_secondary": "text-slate-400",
+    "text_description_min": "text-xs 以上・透過なしの text-slate-300 / text-slate-400",
+    "_rule": "新しい色はまずここに追記してから使う。UIファイルへの直書きで色を増やさない。tally_rec は「いま記録している」ことを示すタリー専用で、録画中インジケータと、通知領域アイコンの定期キャプチャー実行中がこれにあたる。それ以外の用途に赤を使わない（プロ機材のタリーランプ規範）。tally_pause は記録が止まっている状態のタリーで、通知領域アイコンの停止中にも使う。pointer_core は画面へ重ねる一時的な光の芯に使う白で、レーザーポインターの中心とクリックの波紋がこれにあたる。発光が中心で色を失って白く飛ぶ見え方の再現と、録画される映像の上へアプリの色を残さないためのもの。UI の文字色や面には使わない。folder_icon は保存先フォルダのアイコンだけに使う黄色で、OS の見慣れたフォルダ色に寄せて操作の意味を読まずに掴ませるためのもの。警告の amber とは役割が別なので、他の場所へ流用しない",
+    "pointer_core": "#ffffff",
+    "folder_icon": "#fbbf24"
+  },
+  "typography": {
+    "display": "Archivo Variable — 低コントラストの工業系グロテスク。見出しとロゴに 600/700、tracking-tight",
+    "body": "Archivo Variable — 本文とコントロールラベルに 400/500",
+    "mono": "Chivo Mono — タイムコード・ビットレート・FPS・解像度など、桁が揃う必要のある数値表示すべて",
+    "jp": "IBM Plex Sans JP — 和文。Archivo と同じグロテスク骨格で混植しても崩れない。明朝系および Noto Sans JP ベタ置きは禁止",
+    "label_style": "text-[0.6875rem] 相当以上 + UPPERCASE + tracking-widest + font-medium",
+    "fluid": "clamp() でリサイズに滑らかに追従。UI 基準は clamp(0.75rem, 0.68rem + 0.3vw, 0.875rem)",
+    "_rule": "フォントは @fontsource でローカル同梱する。CSP により外部 CDN からの読み込みは禁止"
+  },
+  "texture": {
+    "acrylic": true,
+    "backdrop_blur": "backdrop-blur-md",
+    "inset_shadow": "shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]",
+    "panel_shadow": "shadow-[0_1px_0_0_rgba(255,255,255,0.03)_inset,0_8px_24px_-12px_rgba(0,0,0,0.8)]",
+    "grain": "極薄のノイズを重ねて平坦なグラデーションのバンディングを消す（opacity 0.015 以下）"
+  },
+  "density": {
+    "level": "high",
+    "reference": "Blackmagic ATEM / DaVinci Resolve のインスペクタ、ATOMOS レコーダーのステータスパネル",
+    "icon_size": "w-3.5 h-3.5 〜 w-4 h-4",
+    "icon_color": "text-slate-400",
+    "slider": "極細トラック + 発光数値バッジ",
+    "row_height": "コントロール行は 28〜32px。パネル内パディングは px-3 py-2 を基準"
+  },
+  "motion": {
+    "hover": "hover:scale-[1.01]",
+    "active": "active:scale-[0.98]",
+    "tab_switch": "Magic Motion（layoutId による滑らかな遷移）",
+    "disabled": "グレーアウトせず opacity-25〜40",
+    "tally_pulse": "録画中インジケータは 1.6s ease-in-out の呼吸で明滅させる。点滅（矩形波）は安っぽいので使わない",
+    "_rule": "録画中は Renderer のアニメーション負荷を最小化する。装飾アニメーションは録画停止中のみ動かす"
+  },
+  "zindex": {
+    "base": 0,
+    "floating": 40,
+    "modal": 50,
+    "tooltip": 60
+  },
+  "forbidden": [
+    "紫グラデーション on 白背景",
+    "Inter / Roboto / Arial / Outfit / システムフォント頼みのタイポグラフィ",
+    "和文UIへの明朝系フォント（Shippori Mincho 等）",
+    "text-[10px] / text-[11px] や薄すぎるカラーの説明文",
+    "太いグレー枠・デフォルト影・原色ベタ塗り",
+    "このファイルに無い色やフォントの直書き導入",
+    "記録中を示すタリー（録画中インジケータ・通知領域の定期キャプチャー中）以外の場所で赤（tally_rec）を使うこと",
+    "外部 CDN からのフォント・スクリプト読み込み",
+    "先頭スラッシュ絶対パスによる静的資産参照（file:// で必ず壊れる）"
+  ],
+  "app_text_tone": "アプリ内のヘルプ・設定補足・マニュアル類は「です・ます調（セミフォーマル）」で統一"
+}

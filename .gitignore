@@ -1,0 +1,17 @@
+node_modules/
+out/
+release/
+dist/
+
+# 同梱 OBS は scripts/fetch-obs.mjs で取得する。リポジトリには含めない。
+resources/obs-studio/
+resources/obs-download.zip
+
+*.log
+.DS_Store
+
+# 同梱用に取得したキャプチャエンジン。ビルド時に取り直せるため持たない。
+build/engine/
+
+# 型チェックのキャッシュ。ローカルの絶対パスを含むため持たない。
+*.tsbuildinfo

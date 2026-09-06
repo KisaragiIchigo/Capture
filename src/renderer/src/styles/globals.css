@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-base text-slate-200 font-sans antialiased;
+    /* 枠なしウィンドウなので、body 自体がアプリの外周になる。 */
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* 数値は等幅で桁を揃える。タイムコードが 1 桁変わるたびに横幅が動くのを防ぐ。 */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    @apply font-mono;
+  }
+
+  ::selection {
+    @apply bg-teal-500/30 text-teal-100;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-white/[0.08];
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-teal-500/40;
+    box-shadow: 0 0 8px rgba(20, 184, 166, 0.3);
+  }
+
+  /* 入力欄のオートフィルで背景が白く浮くのを潰す。 */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: theme('colors.slate.200');
+    -webkit-box-shadow: 0 0 0 1000px theme('colors.base.alt') inset;
+    caret-color: theme('colors.slate.200');
+  }
+
+  input,
+  textarea {
+    user-select: text;
+  }
+}
+
+@layer components {
+  /* パネルの共通地。極薄の面 + 極細の境界 + インセットのハイライト。 */
+  .panel {
+    @apply rounded-lg border border-white/[0.06] bg-white/[0.02] shadow-panel backdrop-blur-md;
+  }
+
+  /* 入力系を背景へ沈み込ませる井戸。フォーカスでティールの縁に遷移する。 */
+  .well {
+    @apply rounded-md border border-white/[0.06] bg-black/40 shadow-inset-well transition-colors duration-150;
+  }
+
+  .well-focus {
+    @apply focus-visible:border-teal-500/50 focus-visible:outline-none;
+  }
+
+  /* パネル見出しなどの小ラベル。 */
+  .rail-label {
+    @apply text-fluid-2xs font-medium uppercase tracking-widestest text-slate-400;
+  }
+
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+}

@@ -1,0 +1,11 @@
+/* 透過ウィンドウなので、地の色を一切置かない。ここに背景を敷くと枠全体が塗り潰される。 */
+html,
+body,
+#root {
+  height: 100%;
+  background: transparent !important;
+}
+
+body {
+  overflow: hidden;
+}

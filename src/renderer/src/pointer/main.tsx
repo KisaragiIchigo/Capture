@@ -1,0 +1,15 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+
+import '../styles/globals.css'
+import '../finder/finder.css'
+import { PointerWindow } from './PointerWindow'
+
+const container = document.getElementById('root')
+if (!container) throw new Error('root 要素が見つかりません。')
+
+createRoot(container).render(
+  <StrictMode>
+    <PointerWindow />
+  </StrictMode>
+)
