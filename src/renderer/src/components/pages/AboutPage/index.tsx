@@ -1,9 +1,19 @@
 import { useEffect, useState, type ReactElement } from 'react'
+import { ExternalLink } from 'lucide-react'
 import type { AppInfo, EngineState } from '@shared/types'
 import { Panel } from '@renderer/components/ui/Panel'
+import { Button } from '@renderer/components/ui/Button'
+
+const OBS_REPOSITORY = 'https://github.com/obsproject/obs-studio'
 
 interface AboutPageProps {
   engine: EngineState
+}
+
+/** 同梱している版のソースへ直接渡す。版が分からないうちはリポジトリの入口を返す。 */
+function obsSourceUrl(version: string | null): string {
+  if (!version) return OBS_REPOSITORY
+  return `${OBS_REPOSITORY}/releases/tag/${encodeURIComponent(version)}`
 }
 
 export function AboutPage({ engine }: AboutPageProps): ReactElement {
@@ -41,10 +51,32 @@ export function AboutPage({ engine }: AboutPageProps): ReactElement {
 
       <Panel title="ライセンス">
         <p className="text-fluid-xs leading-relaxed text-slate-400">
-          キャプチャーエンジンとして OBS Studio（GPL v2）を別プロセスとして同梱し、WebSocket
-          経由で制御しています。同梱している OBS はポータブル構成のため、お使いの PC に個別に
-          インストールされた OBS の設定には影響しません。
+          このアプリ本体は MIT ライセンスで公開しています。
         </p>
+
+        <p className="mt-2 text-fluid-xs leading-relaxed text-slate-400">
+          キャプチャーエンジンとして OBS Studio（GPL v2）を別プロセスとして同梱し、WebSocket
+          経由で制御しています。同梱している OBS は公式が配布しているものをそのまま使っており、
+          改変は加えていません。ポータブル構成のため、お使いの PC に個別にインストールされた
+          OBS の設定には影響しません。
+        </p>
+
+        <p className="mt-2 text-fluid-xs leading-relaxed text-slate-400">
+          GPL v2 の全文は、同梱している OBS のフォルダ内（data/obs-studio/license/gplv2.txt）に
+          収録しています。対応するソースコードは、下のボタンから入手できます。
+        </p>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-3"
+          onClick={() => {
+            void window.capture.system.openExternal(obsSourceUrl(engine.backendVersion))
+          }}
+          icon={<ExternalLink className="h-3 w-3" />}
+        >
+          OBS Studio のソースコード
+        </Button>
       </Panel>
     </div>
   )

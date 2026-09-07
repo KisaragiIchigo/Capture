@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { createLogger } from '@main/lib/logger'
 import { logDirectory } from '@main/lib/paths'
 import { clearLogs, readLogInfo } from '@main/lib/logStore'
-import { pathPayloadSchema } from '../schemas'
+import { externalUrlSchema, pathPayloadSchema } from '../schemas'
 
 const log = createLogger('ipc-system')
 
@@ -44,6 +44,16 @@ export function registerSystemHandlers(): void {
 
   ipcMain.handle(IPC.system.clearLogs, () => {
     clearLogs()
+  })
+
+  ipcMain.handle(IPC.system.openExternal, async (_event, payload: unknown) => {
+    const parsed = externalUrlSchema.safeParse(payload)
+    if (!parsed.success) {
+      log.error('不正な URL を受け取りました', parsed.error.issues)
+      throw new Error('指定されたリンクを開けませんでした。')
+    }
+
+    await shell.openExternal(parsed.data)
   })
 
   ipcMain.handle(IPC.system.getAppInfo, (): AppInfo => {

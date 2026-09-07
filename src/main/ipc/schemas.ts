@@ -190,6 +190,24 @@ export const intervalStateSchema = z.object({
 
 export const pathPayloadSchema = absolutePath
 
+/**
+ * 外部ブラウザへ渡す URL。
+ *
+ * http と https 以外を弾く。file: や data: を通すと、外部を開く口が
+ * そのままローカルの実行経路になる。
+ */
+export const externalUrlSchema = z
+  .string()
+  .max(2048)
+  .refine((value) => {
+    try {
+      const { protocol } = new URL(value)
+      return protocol === 'https:' || protocol === 'http:'
+    } catch {
+      return false
+    }
+  }, 'http または https の URL を指定してください')
+
 /** ファインダーの位置とサイズ。仮想デスクトップ上では座標が負になることもある。 */
 export const finderBoundsSchema = z.object({
   x: z.number().int().min(-32768).max(32768),

@@ -10,6 +10,7 @@
  *   node scripts/fetch-engine.mjs --force  … 取得済みでも取り直す
  */
 import { createWriteStream, existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { copyFile, mkdir, rm, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -224,13 +225,43 @@ async function extract(destination) {
   process.stdout.write(`\r  展開中 ${done} / ${done} ファイル\n`)
 }
 
-/** 取得済みの版。控えが無ければ不明として扱い、次のビルドで書き直させる。 */
-function readVersion(root) {
+/**
+ * 展開済みの実行ファイルから版を読む。
+ *
+ * 同梱した版は、配布時に対応するソースを示すために要る。控えを取り違えると
+ * どの版を配ったか特定できなくなるため、実体を一次情報として扱う。
+ */
+function readExecutableVersion(root) {
+  const executable = join(root, 'bin', '64bit', 'obs64.exe')
+  if (!existsSync(executable)) return 'unknown'
+
   try {
-    return JSON.parse(readFileSync(join(root, 'engine.json'), 'utf8')).version ?? 'unknown'
+    const output = execFileSync(
+      'powershell',
+      ['-NoProfile', '-Command', '(Get-Item -LiteralPath $env:OBS_EXECUTABLE).VersionInfo.ProductVersion'],
+      { encoding: 'utf8', env: { ...process.env, OBS_EXECUTABLE: executable } }
+    )
+    return output.trim() || 'unknown'
   } catch {
     return 'unknown'
   }
+}
+
+/**
+ * 取得済みの版。
+ *
+ * engine.json が無いまま「取得済み」の経路へ入ると unknown が書き込まれ、--force を
+ * 付けない限りそのまま固定される。控えが欠けているときは実行ファイルから読み直す。
+ */
+function readVersion(root) {
+  try {
+    const recorded = JSON.parse(readFileSync(join(root, 'engine.json'), 'utf8')).version
+    if (recorded && recorded !== 'unknown') return recorded
+  } catch {
+    // 控えが無い。実体から読む。
+  }
+
+  return readExecutableVersion(root)
 }
 
 async function main() {

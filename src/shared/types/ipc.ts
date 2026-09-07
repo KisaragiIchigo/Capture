@@ -71,7 +71,8 @@ export const IPC = {
     openLogFolder: 'system:openLogFolder',
     getLogInfo: 'system:getLogInfo',
     clearLogs: 'system:clearLogs',
-    getAppInfo: 'system:getAppInfo'
+    getAppInfo: 'system:getAppInfo',
+    openExternal: 'system:openExternal'
   },
   events: {
     engineState: 'event:engineState',
@@ -210,6 +211,13 @@ export interface CaptureBridge {
     /** 保存されているログをすべて消す。 */
     clearLogs: () => Promise<void>
     getAppInfo: () => Promise<AppInfo>
+    /**
+     * 既定のブラウザで外部の URL を開く。
+     *
+     * 同梱している OBS のソースコードの入手先など、アプリの外にある一次情報へ渡すために使う。
+     * 受け取り側で http と https 以外を弾く。
+     */
+    openExternal: (url: string) => Promise<void>
   }
   events: {
     onEngineState: (listener: (state: EngineState) => void) => () => void

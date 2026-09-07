@@ -99,7 +99,9 @@ const bridge: CaptureBridge = {
     openLogFolder: () => ipcRenderer.invoke(IPC.system.openLogFolder) as Promise<void>,
     getLogInfo: () => ipcRenderer.invoke(IPC.system.getLogInfo) as Promise<LogInfo>,
     clearLogs: () => ipcRenderer.invoke(IPC.system.clearLogs) as Promise<void>,
-    getAppInfo: () => ipcRenderer.invoke(IPC.system.getAppInfo) as Promise<AppInfo>
+    getAppInfo: () => ipcRenderer.invoke(IPC.system.getAppInfo) as Promise<AppInfo>,
+    openExternal: (url: string) =>
+      ipcRenderer.invoke(IPC.system.openExternal, url) as Promise<void>
   },
   events: {
     onEngineState: (listener) => subscribe<EngineState>(IPC.events.engineState, listener),

@@ -4,6 +4,77 @@
   "entries": [
     {
       "date": "2026-09-07",
+      "title": "OBS を同梱したインストーラを配るための GPL v2 対応を整えた",
+      "summary": "アプリ本体のライセンスを MIT に統一し（package.json が UNLICENSED のまま LICENSE ファイルと食い違っていた）、README にライセンスの章とリリース公開時の手順を書いた。［情報］画面のライセンス欄には、本体が MIT であること、同梱している OBS が未改変であること、GPL v2 全文の収録場所を追記し、同梱した版のソースコードを既定のブラウザで開くボタンを置いた。外部 URL を開くための IPC（system:openExternal）を新設し、Main 側で http と https 以外を弾く。 その後、公開済みの Release 0.1.0 に OBS 同梱のインストーラ（244.5MB）が既に添付されていることが分かったため、README のライセンス章を「これから配るときの手順」から「ソースの公開とインストーラの配布は別の話」という区分に書き直した。あわせて engine.json の版が unknown のまま固定されるバグを直した。",
+      "purpose": "ユーザーから「OBS 本体のライセンス表記（GPL）とソース提供がリポジトリにある。これは平気か」という相談を受けた。調べたところ、公開リポジトリ側には GPL のコードが 1 行も入っていない（.gitignore で resources/obs-studio と build/engine を除外済み）一方で、electron-builder の extraResources が OBS のバイナリをインストーラへ同梱していた。バイナリの再配布にあたるため GPL v2 の条件がかかるが、対応するソースの入手経路だけが用意されていなかった。",
+      "decisions": [
+        {
+          "topic": "GPL v2 が求める 3 つのうち、何が欠けていたか",
+          "chosen": "ライセンス全文の同梱と GPL である旨の明示は既に満たしていたため、欠けていた「対応するソースの提供」だけを埋めた",
+          "reason": "OBS 公式の Windows 版 zip には data/obs-studio/license/gplv2.txt が含まれており、extraResources の filter が **/* なのでインストーラへそのまま入る。［情報］画面にも GPL v2 である旨は既に書かれていた。足りないのはソースの入手経路だけだったので、アプリ内のリンクと、リリース時にソースアーカイブを同じ場所へ添付する手順を用意した。"
+        },
+        {
+          "topic": "ソースの提供方法",
+          "chosen": "アプリ内から公式リポジトリの該当タグを開くリンクを置き、あわせて README のリリース手順に「インストーラと同じ場所へソースアーカイブを添付する」ことを必須として書いた",
+          "reason": "GPL v2 第 3 条は、ダウンロードでバイナリを配る場合、同じ場所から同等のアクセスでソースも入手できることを求めている。公式サイトへのリンクだけでは厳密には条件を満たさない。リンクは利用者の利便のため、添付は条件を満たすための手順として、役割を分けて両方持つ。"
+        },
+        {
+          "topic": "外部 URL を開く口",
+          "chosen": "system:openExternal を新設し、Main 側の Zod スキーマで http と https 以外を弾く",
+          "reason": "既存の system:openPath は shell.openPath でローカルの実体を開くもので、外部 URL には使えない。新しく口を開けるにあたり、file: や data: を通すと外部を開く導線がそのままローカルの実行経路になるため、境界で弾く。"
+        },
+        {
+          "topic": "ライセンス全文の場所の書き方",
+          "chosen": "アプリ内には絶対パスを書かず、data/obs-studio/license/gplv2.txt という相対の位置だけを示す",
+          "reason": "エンジンは初回起動時に書き込みできる場所へ配置し直すため、インストール先の絶対パスと実際に読まれる場所が一致しない。絶対パスを書くと将来ずれて嘘になる。"
+        },
+        {
+          "topic": "ソース公開とインストーラ配布の区別",
+          "chosen": "README に表を置き、リポジトリの公開では GPL の義務が生じず、インストーラの配布で生じることを明示した",
+          "reason": "リポジトリには .gitignore で OBS のバイナリもソースも入っていないため、ソースを公開しているだけの状態では OBS を再配布していない。一方 Releases のインストーラには OBS が入る。この 2 つを混同すると、義務が無い所で身構えるか、義務がある所を見落とすかのどちらかになる。"
+        },
+        {
+          "topic": "engine.json の版が unknown で固定される問題",
+          "chosen": "控えが欠けているときは obs64.exe の ProductVersion から読み直す",
+          "reason": "engine.json が無い状態で「取得済みです」の経路へ入ると readVersion が unknown を返し、それがそのまま書き戻されて --force を付けない限り固定される。実際に配布した 0.1.0 の engine.json も unknown だった。どの版を同梱したか特定できないと、GPL が求める対応するソースを示せない。実行ファイルの版情報を一次情報として扱う。"
+        }
+      ],
+      "files": {
+        "created": [],
+        "modified": [
+          "package.json（license を UNLICENSED から MIT へ。LICENSE ファイルとの食い違いを解消）",
+          "README.md（ライセンスの章とリリース公開時の手順を追加。アーキテクチャ概要のツリーへ LICENSE を追加）",
+          "src/shared/types/ipc.ts（IPC.system.openExternal、CaptureBridge.system.openExternal）",
+          "src/main/ipc/schemas.ts（externalUrlSchema。http と https のみ許可）",
+          "src/main/ipc/handlers/systemHandlers.ts（system:openExternal のハンドラ）",
+          "src/preload/index.ts（system.openExternal）",
+          "src/renderer/src/components/pages/AboutPage/index.tsx（ライセンス欄の記述追加、ソースコードを開くボタン、obsSourceUrl）",
+          "scripts/fetch-engine.mjs（readExecutableVersion を追加し、readVersion が控えの欠落時に実行ファイルから読み直すようにした）"
+        ]
+      },
+      "impact": "録画や静止画の動作には影響しない。［情報］画面の見た目と、外部 URL を開く IPC が 1 つ増えた。配布物の中身は変わらないが、リリースを公開する手順に「OBS のソースアーカイブを添付する」が加わった。",
+      "verified": [
+        "npm run typecheck（typecheck:node / typecheck:web の両方）通過",
+        "OBS 公式配布物に data/obs-studio/license/gplv2.txt が含まれ、extraResources の filter **/* でインストーラへ運ばれることを build/engine 配下の実ファイルで確認した",
+        "公開済みリポジトリに GPL のコードが含まれていないことを git ls-files で確認した",
+        "scripts/fetch-engine.mjs の修正後に npm run engine:fetch を実行し、engine.json の version が unknown から 32.2.2 へ直ることを確認した",
+        "配布済みの Capture-0.1.0-Setup.exe に入っている OBS の版を、release/win-unpacked/resources/engine/obs-studio/bin/64bit/obs64.exe の ProductVersion から 32.2.2 と確定した",
+        "OBS 公式が OBS-Studio-32.2.2-Sources.tar.gz（15.9MB）をリリース資産として配布していることを確認し、手元へ取得した"
+      ],
+      "unverified": [
+        "［情報］画面のボタンから実際に既定のブラウザが開くこと。アプリを起動しての確認はしていない",
+        "engine.backendVersion の文字列が OBS のリリースタグ名とそのまま一致するか。32.2.2 のような形式であれば releases/tag/32.2.2 で解決するが、実機の応答値は突き合わせていない",
+        "Release 0.1.0 へのソースアーカイブの添付と、リリースノートへの GPL 表記の追記。gh CLI が GH_TOKEN によって別アカウント（reeet1002）で認証されており、KisaragiIchigo/Capture への書き込みが 404 で拒否されたため実行できていない。添付するファイルと差し替える文面は release/ 配下へ用意済み"
+      ],
+      "concerns": [
+        "OBS を別プロセスとして起動し WebSocket で制御する構成と、インストーラへの同梱は、一般には独立したプログラムの集合体（mere aggregation）と解釈されるが、法的な確定判断ではない。本体を MIT のまま配る前提を変える場合は、この構成の見直しから必要になる",
+        "リリース時のソースアーカイブ添付は人が行う手順のため、忘れると条件を満たさなくなる。README のリリース手順に書いたが、自動化はしていない",
+        "公開中の Release 0.1.0 には OBS 32.2.2 を含むインストーラだけが添付され、対応するソースとリリースノートの表記が無い状態が続いている。ソースアーカイブの添付とノートの追記で解消する",
+        "gh CLI の認証アカウントとリポジトリの所有者が食い違っている（gh は reeet1002、リポジトリと git config は KisaragiIchigo）。リリースへの書き込みを伴う操作は、ブラウザから行うか gh の認証を切り替える必要がある"
+      ]
+    },
+    {
+      "date": "2026-09-07",
       "title": "設定を切り替えた直後の静止画が、前の設定のまま保存されていた不具合を修正した",
       "summary": "静止画の保存が、設定変更による組み立ての完了を待っていなかった。並べ方を切り替えてすぐ撮ると、切り替える前の見え方で保存される。録画は開始時に組み立てを待っているため、静止画も同じところで待たせるようにした。",
       "purpose": "ユーザーから「縦に並べるは直ったが、横に並べるが破綻した」という報告と出力画像を受け取った。画像の寸法が縦に並べたときの値のままだった。",

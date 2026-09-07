@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Windows 向け画面 / ゲーム録画ソフト。OBS のキャプチャエンジンを内包した高密度プロ機材コンソール UI。",
   "main": "./out/main/index.js",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
