@@ -1,8 +1,9 @@
 import { app, ipcMain, shell } from 'electron'
-import { IPC, type AppInfo } from '@shared/types'
+import { IPC, type AppInfo, type LogInfo } from '@shared/types'
 import { mkdirSync } from 'node:fs'
 import { createLogger } from '@main/lib/logger'
 import { logDirectory } from '@main/lib/paths'
+import { clearLogs, readLogInfo } from '@main/lib/logStore'
 import { pathPayloadSchema } from '../schemas'
 
 const log = createLogger('ipc-system')
@@ -37,6 +38,12 @@ export function registerSystemHandlers(): void {
 
     const error = await shell.openPath(directory)
     if (error) throw new Error('ログの保存先を開けませんでした。')
+  })
+
+  ipcMain.handle(IPC.system.getLogInfo, (): LogInfo => readLogInfo())
+
+  ipcMain.handle(IPC.system.clearLogs, () => {
+    clearLogs()
   })
 
   ipcMain.handle(IPC.system.getAppInfo, (): AppInfo => {

@@ -1,7 +1,12 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC, type SetupProgress, type SetupState } from '@shared/types'
 import { createLogger } from '@main/lib/logger'
-import { installEngine, isEngineBundled, isEngineInstalled } from '@main/setup/installEngine'
+import {
+  installEngine,
+  isEngineBundled,
+  isEngineInstalled,
+  isEngineOutdated
+} from '@main/setup/installEngine'
 import type { IpcContext } from '../context'
 
 const log = createLogger('ipc-setup')
@@ -58,7 +63,8 @@ export function registerSetupHandlers(context: IpcContext): () => void {
   ipcMain.handle(
     IPC.setup.getState,
     (): SetupState => ({
-      installed: isEngineInstalled(),
+      // 同梱物より古い配置は、使える状態とは見なさない。入れ替えの間は準備画面へ寄せる。
+      installed: isEngineInstalled() && !isEngineOutdated(),
       installing: controller !== null,
       bundled: isEngineBundled()
     })

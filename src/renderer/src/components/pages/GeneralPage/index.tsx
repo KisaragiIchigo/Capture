@@ -1,6 +1,6 @@
-import type { ReactElement } from 'react'
-import { FolderOpen, FolderSearch } from 'lucide-react'
-import type { AppSettings, HotkeyAction, HotkeyBinding, HotkeyConfig } from '@shared/types'
+import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { FileText, FolderOpen, FolderSearch, Trash2 } from 'lucide-react'
+import type { AppSettings, HotkeyAction, HotkeyBinding, HotkeyConfig, LogInfo } from '@shared/types'
 import { Panel } from '@renderer/components/ui/Panel'
 import { Field, Readout } from '@renderer/components/ui/Field'
 import { Button } from '@renderer/components/ui/Button'
@@ -34,6 +34,18 @@ export function GeneralPage({
   const patchBehavior = (patch: Partial<AppSettings['behavior']>): void => {
     onChangeSettings((current) => ({ ...current, behavior: { ...current.behavior, ...patch } }))
   }
+
+  const [logInfo, setLogInfo] = useState<LogInfo | null>(null)
+
+  const refreshLogInfo = useCallback(() => {
+    window.capture.system
+      .getLogInfo()
+      .then(setLogInfo)
+      .catch(() => setLogInfo(null))
+  }, [])
+
+  // 溜まっている量が見えないと、保存を切るかどうかを決められない。
+  useEffect(refreshLogInfo, [refreshLogInfo])
 
   return (
     <div className="grid grid-cols-1 items-start gap-2 lg:grid-cols-2">
@@ -126,6 +138,68 @@ export function GeneralPage({
         />
       </Panel>
 
+      <Panel title="ログ">
+        <ToggleRow
+          label="動作ログを保存する"
+          description="操作の時刻とエンジンからの応答をファイルに記録します。不具合の原因を調べるときに使います。映像や個人を特定する情報は含まれません。"
+          checked={behavior.logToFile}
+          onChange={(logToFile) => patchBehavior({ logToFile })}
+        />
+
+        <div className="mt-1 border-t border-white/[0.04] pt-1">
+          <Field
+            label="保存する期間"
+            description="この日数を過ぎたログを、起動時に自動で削除します。0 を指定すると削除しません。"
+            readout={
+              <Readout tone="muted">
+                {behavior.logRetentionDays === 0 ? '削除しない' : `${behavior.logRetentionDays} 日`}
+              </Readout>
+            }
+          >
+            <NumberInput
+              aria-label="ログを保存する期間"
+              value={behavior.logRetentionDays}
+              min={0}
+              max={365}
+              suffix="日"
+              disabled={!behavior.logToFile}
+              onChange={(logRetentionDays) => patchBehavior({ logRetentionDays })}
+            />
+          </Field>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+            <span className="text-fluid-xs text-slate-400">
+              現在の保存量：
+              <span className="tabular ml-1 text-slate-300">
+                {logInfo ? `${formatLogSize(logInfo.totalBytes)}（${logInfo.fileCount} 件）` : '—'}
+              </span>
+            </span>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => void window.capture.system.openLogFolder()}
+                icon={<FileText className="h-3 w-3" />}
+              >
+                開く
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!logInfo || logInfo.fileCount === 0}
+                onClick={() => {
+                  void window.capture.system.clearLogs().then(refreshLogInfo)
+                }}
+                icon={<Trash2 className="h-3 w-3" />}
+              >
+                今すぐ削除
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
       <Panel title="キャプチャー自動終了">
         <Field
           label="録画時間の上限"
@@ -165,4 +239,11 @@ export function GeneralPage({
       </Panel>
     </div>
   )
+}
+
+/** 保存量の表示。桁が変わっても読み取りやすい単位へ丸める。 */
+function formatLogSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }

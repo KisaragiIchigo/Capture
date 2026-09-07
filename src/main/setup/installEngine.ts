@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import type { SetupProgress } from '@shared/types'
 import { createLogger } from '@main/lib/logger'
 import { obsExecutable, obsPortableMarker, obsRoot } from '@main/lib/paths'
-import { copyBundledEngine, hasBundledEngine } from './copyBundledEngine'
+import { copyBundledEngine, hasBundledEngine, needsEngineRefresh } from './copyBundledEngine'
 import { downloadEngine } from './downloadEngine'
 import { removeTree, replaceEngineRoot, stagingRoot } from './stageEngine'
 
@@ -46,6 +46,11 @@ export async function installEngine(
 /** 同梱されたエンジンを使えるかどうか。導入にネットワークが要るかの判断に使う。 */
 export function isEngineBundled(): boolean {
   return hasBundledEngine()
+}
+
+/** 配置済みのエンジンが、このビルドの同梱物より古いかどうか。 */
+export function isEngineOutdated(): boolean {
+  return isEngineInstalled() && needsEngineRefresh()
 }
 
 /** 導入済みかどうか。実行ファイルとポータブル指定の両方が揃って初めて使える。 */

@@ -69,6 +69,8 @@ export const IPC = {
     openPath: 'system:openPath',
     revealInExplorer: 'system:revealInExplorer',
     openLogFolder: 'system:openLogFolder',
+    getLogInfo: 'system:getLogInfo',
+    clearLogs: 'system:clearLogs',
     getAppInfo: 'system:getAppInfo'
   },
   events: {
@@ -98,6 +100,13 @@ export interface SetupState {
   installing: boolean
   /** エンジンがこのビルドに同梱されているかどうか。導入にネットワークが要るかが変わる。 */
   bundled: boolean
+}
+
+/** 保存されているログの量。 */
+export interface LogInfo {
+  directory: string
+  totalBytes: number
+  fileCount: number
 }
 
 export interface AppInfo {
@@ -196,6 +205,10 @@ export interface CaptureBridge {
      * 何が起きたかを持ち出せる場所を、失敗した画面から 1 手で開けるようにする。
      */
     openLogFolder: () => Promise<void>
+    /** 保存されているログの量。設定画面で今の状態を示すために使う。 */
+    getLogInfo: () => Promise<LogInfo>
+    /** 保存されているログをすべて消す。 */
+    clearLogs: () => Promise<void>
     getAppInfo: () => Promise<AppInfo>
   }
   events: {

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import {
   defaultHotkeys,
@@ -142,7 +142,10 @@ export function defaultSettings(): AppSettings {
       countdownSec: 0,
       autoStopMinutes: 0,
       minFreeDiskGb: 2,
-      launchMinimized: true
+      launchMinimized: true,
+      logToFile: true,
+      // 不具合の相談に足りて、溜め込みすぎない長さ。
+      logRetentionDays: 14
     }
   }
 }
@@ -179,6 +182,9 @@ export function loadSettings(): AppSettings {
  * 起動時と保存先の変更時にも作っておく。存在しないフォルダは開けない。
  */
 export function ensureOutputDirectory(directory: string): void {
+  // ドライブ直下は既に存在するのに mkdir が EPERM で弾かれる。作る必要がある時だけ作る。
+  if (existsSync(directory)) return
+
   try {
     mkdirSync(directory, { recursive: true })
   } catch (err) {

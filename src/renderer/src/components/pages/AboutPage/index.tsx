@@ -1,8 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react'
-import { FileText } from 'lucide-react'
 import type { AppInfo, EngineState } from '@shared/types'
 import { Panel } from '@renderer/components/ui/Panel'
-import { Button } from '@renderer/components/ui/Button'
 
 interface AboutPageProps {
   engine: EngineState
@@ -39,23 +37,6 @@ export function AboutPage({ engine }: AboutPageProps): ReactElement {
           <InfoRow label="プラットフォーム" value={info?.platform ?? '—'} />
           <InfoRow label="キャプチャーエンジン" value={engine.backendVersion ?? '未接続'} />
         </dl>
-      </Panel>
-
-      <Panel title="トラブルシューティング">
-        <p className="text-fluid-xs leading-relaxed text-slate-400">
-          録画や保存がうまくいかない場合、動作の記録が原因の手がかりになります。ログには操作の
-          時刻とエンジンからの応答が残ります。個人を特定する情報や、録画した映像そのものは
-          含まれません。
-        </p>
-        <div className="mt-3">
-          <Button
-            variant="ghost"
-            onClick={() => void window.capture.system.openLogFolder()}
-            icon={<FileText className="h-3.5 w-3.5" />}
-          >
-            ログフォルダを開く
-          </Button>
-        </div>
       </Panel>
 
       <Panel title="ライセンス">

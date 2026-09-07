@@ -10,6 +10,7 @@ import {
   type HotkeyAction,
   type HotkeyBinding,
   type IntervalCaptureState,
+  type LogInfo,
   type PointerMovePayload,
   type PointerOrigin,
   type RecordingResult,
@@ -96,6 +97,8 @@ const bridge: CaptureBridge = {
     revealInExplorer: (target: string) =>
       ipcRenderer.invoke(IPC.system.revealInExplorer, target) as Promise<void>,
     openLogFolder: () => ipcRenderer.invoke(IPC.system.openLogFolder) as Promise<void>,
+    getLogInfo: () => ipcRenderer.invoke(IPC.system.getLogInfo) as Promise<LogInfo>,
+    clearLogs: () => ipcRenderer.invoke(IPC.system.clearLogs) as Promise<void>,
     getAppInfo: () => ipcRenderer.invoke(IPC.system.getAppInfo) as Promise<AppInfo>
   },
   events: {

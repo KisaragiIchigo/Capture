@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { screen } from 'electron'
 import type { OBSWebSocket } from 'obs-websocket-js'
 import type {
@@ -30,6 +30,8 @@ import {
   applyRegionCropFilter,
   buildVideoSource,
   ensureScene,
+  fitVideoToCanvas,
+  measureVideoSize,
   resetManagedSources,
   resolveCanvasSize
 } from './buildSceneGraph'
@@ -68,8 +70,15 @@ const STATS_INTERVAL_MS = 1000
  *
  * 作れない場所を指したまま進むと、失敗するのは録画や撮影の側になり、
  * 原因が保存先にあることが読めない。ここで理由ごと止める。
+ *
+ * 先に有無を確かめるのは、ドライブ直下（D:\ など）を保存先にできるため。
+ * ドライブのルートは既に存在するにもかかわらず、mkdir は EPERM で弾かれる。
+ * recursive を付けても同じで、「作る必要が無い場所を作れなかった」という理由で
+ * 録画も撮影も通らなくなる。
  */
 function ensureWritableOutput(directory: string): void {
+  if (existsSync(directory)) return
+
   try {
     mkdirSync(directory, { recursive: true })
   } catch (err) {
@@ -219,10 +228,13 @@ export class ObsWebSocketEngine implements CaptureEngine {
     const obs = this.requireObs()
     this.profile = profile
 
-    const canvas = resolveCanvasSize(profile, this.displays)
+    let canvas = resolveCanvasSize(profile, this.displays)
     await this.applyLiveSettings(obs, profile, canvas)
     // 映像ソースを作り直したときは、重ね合わせを映像より手前へ積み直す必要がある。
     const videoRecreated = await buildVideoSource(obs, profile, this.displays)
+
+    canvas = await this.fitCanvasToSource(obs, profile, canvas)
+
     await applyAudioProfile(obs, profile.audio)
     await applyOverlays(
       obs,
@@ -341,6 +353,38 @@ export class ObsWebSocketEngine implements CaptureEngine {
 
     const { obsVersion } = await this.obs.call('GetVersion')
     this.currentState = { ...this.currentState, backendVersion: obsVersion }
+  }
+
+  /**
+   * ウィンドウとゲームは、掴んだ映像の大きさへキャンバスを合わせ直す。
+   *
+   * これらは対象の大きさが設定から決まらないため、いったんモニタの大きさで組み立てる。
+   * そのままにすると、ウィンドウの外側が余白として残り、モニタと同じ大きさのファイルの
+   * 隅にウィンドウが写る（静止画では余白が透明になる）。撮りたいのはウィンドウであって、
+   * ウィンドウの載っている画面ではない。
+   *
+   * 録画中は変えない。出力の途中でキャンバスの寸法が変わると、記録そのものが壊れる。
+   */
+  private async fitCanvasToSource(
+    obs: OBSWebSocket,
+    profile: CaptureProfile,
+    canvas: { width: number; height: number }
+  ): Promise<{ width: number; height: number }> {
+    if (profile.sourceKind !== 'window' && profile.sourceKind !== 'game') return canvas
+    if (this.currentState.status === 'recording' || this.currentState.status === 'paused') {
+      return canvas
+    }
+
+    const measured = await measureVideoSize(obs)
+    if (!measured) return canvas
+    if (measured.width === canvas.width && measured.height === canvas.height) return canvas
+
+    log.info('取り込んだ映像の大きさへキャンバスを合わせます', { from: canvas, to: measured })
+    await this.applyLiveSettings(obs, profile, measured)
+    // キャンバスが変わったので、映像の収まりも新しい寸法で取り直す。
+    await fitVideoToCanvas(obs, measured)
+
+    return measured
   }
 
   /** OBS 再起動なしで反映できる設定だけを WebSocket 経由で更新する。 */

@@ -16,6 +16,10 @@ export interface AppBehaviorConfig {
   minFreeDiskGb: number
   /** 起動時にウィンドウを最小化した状態で待機します。 */
   launchMinimized: boolean
+  /** 動作ログをファイルへ保存します。 */
+  logToFile: boolean
+  /** 保存したログをこの日数だけ残します。0 で削除しません。 */
+  logRetentionDays: number
 }
 
 export interface AppSettings {

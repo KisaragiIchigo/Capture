@@ -9,7 +9,7 @@
  *   node scripts/fetch-engine.mjs          … 未取得なら取得する
  *   node scripts/fetch-engine.mjs --force  … 取得済みでも取り直す
  */
-import { createWriteStream, existsSync } from 'node:fs'
+import { createWriteStream, existsSync, readFileSync } from 'node:fs'
 import { copyFile, mkdir, rm, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,6 +52,17 @@ const RUNTIME_DLLS = [
   'concrt140.dll'
 ]
 
+/**
+ * 同梱物の内訳を書き残す。
+ *
+ * 導入先では、この内容が配置済みのものと一致するかどうかで入れ替えの要否を決める。
+ * 版を上げたときやランタイムを足したときに、既に導入済みの PC へ届かないと意味がない。
+ */
+async function writeStamp(root, version, runtime) {
+  const stamp = { version, runtime, builtAt: new Date().toISOString() }
+  await writeFile(join(root, 'engine.json'), JSON.stringify(stamp, null, 2), 'utf8')
+}
+
 /** ランタイムを実行ファイルの隣へ複製する。すでにある版は上書きしない。 */
 async function bundleRuntime(root) {
   const system32 = join(process.env.SystemRoot ?? 'C:\Windows', 'System32')
@@ -78,6 +89,8 @@ async function bundleRuntime(root) {
     console.warn(`  この PC に見つからず同梱できませんでした: ${missing.join(', ')}`)
     console.warn('  導入先の PC に Visual C++ 再頒布可能パッケージが無いと、エンジンが起動しません。')
   }
+
+  return missing.length === 0
 }
 
 /** 展開直後のファイルは、ウイルス対策ソフトのスキャンなどで一時的に掴まれていることがある。 */
@@ -211,13 +224,23 @@ async function extract(destination) {
   process.stdout.write(`\r  展開中 ${done} / ${done} ファイル\n`)
 }
 
+/** 取得済みの版。控えが無ければ不明として扱い、次のビルドで書き直させる。 */
+function readVersion(root) {
+  try {
+    return JSON.parse(readFileSync(join(root, 'engine.json'), 'utf8')).version ?? 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
 async function main() {
   const executable = join(engineRoot, 'bin', '64bit', 'obs64.exe')
 
   if (!force && existsSync(executable)) {
     console.log('キャプチャエンジンは取得済みです。取り直す場合は --force を付けてください。')
     // 取得済みでも、ランタイムが揃っていなければここで補う。
-    await bundleRuntime(engineRoot)
+    const runtime = await bundleRuntime(engineRoot)
+    await writeStamp(engineRoot, readVersion(engineRoot), runtime)
     return
   }
 
@@ -236,7 +259,8 @@ async function main() {
     // ポータブル指定が無いと、OBS は利用者の既存設定を読み書きしてしまう。
     await writeFile(join(staging, 'portable_mode.txt'), '', 'utf8')
 
-    await bundleRuntime(staging)
+    const runtime = await bundleRuntime(staging)
+    await writeStamp(staging, target.version, runtime)
 
     if (!existsSync(join(staging, 'bin', '64bit', 'obs64.exe'))) {
       throw new Error('展開後に実行ファイルが見つかりませんでした。アーカイブの構成が想定と異なります。')

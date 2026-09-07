@@ -164,7 +164,9 @@ export const appSettingsSchema = z.object({
     countdownSec: z.number().int().min(0).max(30),
     autoStopMinutes: z.number().int().min(0).max(1440),
     minFreeDiskGb: z.number().min(0).max(1024),
-    launchMinimized: z.boolean()
+    launchMinimized: z.boolean(),
+    logToFile: z.boolean(),
+    logRetentionDays: z.number().int().min(0).max(365)
   })
 })
 

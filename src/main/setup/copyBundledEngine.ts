@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { copyFile, mkdir, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SetupProgress } from '@shared/types'
-import { bundledEngineRoot } from '@main/lib/paths'
+import { bundledEngineRoot, obsRoot } from '@main/lib/paths'
 
 /**
  * インストーラへ同梱したエンジンを、書き込みできる場所へ複製する。
@@ -14,6 +14,33 @@ import { bundledEngineRoot } from '@main/lib/paths'
 /** 同梱されたエンジンがこのビルドに入っているかどうか。 */
 export function hasBundledEngine(): boolean {
   return existsSync(join(bundledEngineRoot(), 'bin', '64bit', 'obs64.exe'))
+}
+
+/**
+ * 同梱されたエンジンが、配置済みのものと違うかどうか。
+ *
+ * 配置は初回だけでは足りない。エンジンの版を上げたときや、実行に必要なものを足したときに、
+ * 既に導入を済ませた PC へ届かないためである。実際、必要なランタイムを同梱しても、
+ * 先に古い構成で配置を終えていた PC では何も変わらなかった。
+ *
+ * 控えが無いのは、この仕組みより前に配置されたということなので、入れ替えの対象とする。
+ */
+export function needsEngineRefresh(): boolean {
+  if (!hasBundledEngine()) return false
+  return readStamp(bundledEngineRoot()) !== readStamp(obsRoot())
+}
+
+/** 同梱物の内訳。版と、ランタイムを含むかどうかを 1 つの文字列にする。 */
+function readStamp(root: string): string | null {
+  try {
+    const raw = JSON.parse(readFileSync(join(root, 'engine.json'), 'utf8')) as {
+      version?: unknown
+      runtime?: unknown
+    }
+    return `${String(raw.version ?? '')}/${String(raw.runtime ?? '')}`
+  } catch {
+    return null
+  }
 }
 
 export async function copyBundledEngine(

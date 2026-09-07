@@ -6,7 +6,8 @@ import {
   type AppSettings,
   type HotkeyAction
 } from '@shared/types'
-import { createLogger } from './lib/logger'
+import { configureFileLogging, createLogger } from './lib/logger'
+import { pruneLogs } from './lib/logStore'
 import { createMainWindow } from './window/createMainWindow'
 import { HotkeyHook } from './window/hotkeyHook'
 import { createPointerWindow, movePointerWindowTo } from './window/createPointerWindow'
@@ -17,7 +18,7 @@ import { registerIpc } from './ipc/registerIpc'
 import { openFinder } from './ipc/handlers/finderHandlers'
 import { toggleDrawingWindow, updateDrawingArea } from './ipc/handlers/drawingHandlers'
 import { runInstall } from './ipc/handlers/setupHandlers'
-import { isEngineBundled, isEngineInstalled } from './setup/installEngine'
+import { isEngineBundled, isEngineInstalled, isEngineOutdated } from './setup/installEngine'
 import type { IpcContext } from './ipc/context'
 import { ObsWebSocketEngine } from './capture/ObsWebSocketEngine'
 import { detectEncoders } from './capture/ObsWebSocketEngine/detectEncoders'
@@ -32,6 +33,13 @@ const log = createLogger('main')
 
 let mainWindow: BrowserWindow | null = null
 let settings: AppSettings = loadSettings()
+
+/*
+ * ログの扱いは、他のどの処理より先に確定させる。ここまでの行は控えに溜まっており、
+ * 保存する設定なら書き出され、しない設定なら 1 行も残らない。
+ */
+configureFileLogging(settings.behavior.logToFile)
+pruneLogs(settings.behavior.logRetentionDays)
 let releaseIpc: (() => void) | null = null
 let hotkeys: HotkeyHook | null = null
 let engine: ObsWebSocketEngine | null = null
@@ -302,6 +310,7 @@ async function bootstrap(): Promise<void> {
     getSettings: () => settings,
     setSettings: (next) => {
       settings = next
+      configureFileLogging(next.behavior.logToFile)
       hotkeys?.setConfig(next.hotkeys)
       applyBehavior(mainWindow, next.behavior)
 
@@ -396,7 +405,7 @@ async function bootstrap(): Promise<void> {
 
   refreshTray()
 
-  if (isEngineInstalled()) {
+  if (isEngineInstalled() && !isEngineOutdated()) {
     // OBS の起動には数秒かかる。UI は先に出し、状態は engineState イベントで追わせる。
     startEngine().catch((err) => log.error('キャプチャエンジンの初期化に失敗しました', err))
   } else if (isEngineBundled()) {
@@ -405,7 +414,7 @@ async function bootstrap(): Promise<void> {
      * ネットワークにも配布元にも触れないので、押して待たせる意味がない。
      * 進捗は setupProgress で流れ、準備画面がそのまま経過を映す。
      */
-    log.info('同梱されたキャプチャエンジンを配置します')
+    log.info('同梱されたキャプチャエンジンを配置します', { refresh: isEngineInstalled() })
     runInstall(context).catch((err) => log.error('キャプチャエンジンの配置に失敗しました', err))
   }
   // 同梱が無く未展開の場合は、Renderer が準備画面を出して取得を待つ。
