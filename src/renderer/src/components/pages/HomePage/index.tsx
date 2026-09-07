@@ -13,6 +13,7 @@ import type {
 import { Panel } from '@renderer/components/ui/Panel'
 import { Field } from '@renderer/components/ui/Field'
 import { Select, type SelectOption } from '@renderer/components/ui/Select'
+import { WindowPicker } from './WindowPicker'
 import { NumberInput } from '@renderer/components/ui/NumberInput'
 import { Button } from '@renderer/components/ui/Button'
 import { HotkeyList } from '@renderer/components/HotkeyList'
@@ -150,15 +151,12 @@ export function HomePage({
           ) : null}
 
           {profile.sourceKind === 'window' ? (
-            <Field label="ウィンドウ" description="最小化中のウィンドウは一覧に表示されません。">
-              <Select
-                value={profile.sourceId ?? ''}
-                options={windowOptions}
-                disabled={locked}
-                placeholder="ウィンドウを選択"
-                onChange={(value) => onChange((current) => ({ ...current, sourceId: value }))}
-              />
-            </Field>
+            <WindowPicker
+              profile={profile}
+              windows={windows}
+              disabled={locked}
+              onChange={onChange}
+            />
           ) : null}
 
           {profile.sourceKind === 'game' ? (

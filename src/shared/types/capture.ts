@@ -25,6 +25,32 @@ export interface WindowSource {
   className: string
 }
 
+/**
+ * 複数のウィンドウを 1 枚へまとめるときの並べ方。
+ *
+ * as-is は画面に置かれているとおりの位置関係を保つ。位置を取得できなかったウィンドウが
+ * ある場合は、並べ方として成立しないため横並びへ落とす。
+ */
+export type WindowLayout = 'as-is' | 'vertical' | 'horizontal'
+
+/**
+ * 映像で埋まらない部分の扱い。
+ *
+ * transparent は静止画（PNG）でのみ透明として残る。動画のコンテナは透明を持てないため、
+ * 録画では黒になる。
+ */
+export type CanvasBackground = 'system' | 'dark' | 'light' | 'transparent'
+
+/** 複数ウィンドウ録画の設定。1 つだけ選んだ場合も同じ道を通る。 */
+export interface WindowCaptureConfig {
+  /** 取り込む対象。OBS のウィンドウ識別子をそのまま持つ。 */
+  ids: string[]
+  layout: WindowLayout
+  background: CanvasBackground
+  /** 並べるときのウィンドウ同士の間隔（ピクセル）。 */
+  gap: number
+}
+
 /** 矩形指定。座標は仮想デスクトップ絶対座標で保持する。 */
 export interface RegionRect {
   x: number
@@ -132,6 +158,8 @@ export interface CaptureProfile {
   video: VideoConfig
   audio: AudioConfig
   cursor: CursorConfig
+  /** ウィンドウ録画の対象と並べ方。sourceKind が window のときだけ使う。 */
+  windowCapture: WindowCaptureConfig
   stillImage: StillImageConfig
   overlays: OverlayConfig
   drawing: DrawingConfig

@@ -101,6 +101,13 @@ export const captureProfileSchema = z.object({
   cursor: z.object({
     capture: z.boolean()
   }),
+  windowCapture: z.object({
+    // 数が増えるほど 1 枚が細かくなる。実用の範囲で頭打ちにする。
+    ids: z.array(z.string().max(1024)).max(8),
+    layout: z.enum(['as-is', 'vertical', 'horizontal']),
+    background: z.enum(['system', 'dark', 'light', 'transparent']),
+    gap: z.number().int().min(0).max(200)
+  }),
   overlays: overlaySchema,
   drawing: z.object({
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/),

@@ -17,6 +17,7 @@ import { createLogger } from '@main/lib/logger'
 import { findFreePort } from '@main/lib/findFreePort'
 import { CaptureEngine, CaptureEngineError } from '../CaptureEngine'
 import { launchObs, terminateObs, type ObsProcessHandle } from './obsProcess'
+import { SOURCE_NAME } from './obsProfile'
 import { connectObs } from './connectObs'
 import {
   PROFILE_NAME,
@@ -30,11 +31,11 @@ import {
   applyRegionCropFilter,
   buildVideoSource,
   ensureScene,
-  fitVideoToCanvas,
-  measureVideoSize,
   resetManagedSources,
   resolveCanvasSize
 } from './buildSceneGraph'
+import { buildWindowScene } from './buildWindowScene'
+import { measureSourceSize, placeSceneItem } from './sceneItems'
 import { applyAudioProfile } from './applyAudioProfile'
 import { applyOverlays } from './applyOverlays'
 import { readAvailableKinds, type ObsKinds } from './obsKinds'
@@ -90,7 +91,7 @@ function ensureWritableOutput(directory: string): void {
 }
 
 function assertCaptureTarget(profile: CaptureProfile): void {
-  if (profile.sourceKind === 'window' && !profile.sourceId) {
+  if (profile.sourceKind === 'window' && profile.windowCapture.ids.length === 0) {
     throw new CaptureEngineError(
       'キャプチャするウィンドウが選択されていません。ホームのページで対象のウィンドウを選んでください。'
     )
@@ -229,11 +230,28 @@ export class ObsWebSocketEngine implements CaptureEngine {
     this.profile = profile
 
     let canvas = resolveCanvasSize(profile, this.displays)
-    await this.applyLiveSettings(obs, profile, canvas)
-    // 映像ソースを作り直したときは、重ね合わせを映像より手前へ積み直す必要がある。
-    const videoRecreated = await buildVideoSource(obs, profile, this.displays)
+    let videoRecreated = false
 
-    canvas = await this.fitCanvasToSource(obs, profile, canvas)
+    if (profile.sourceKind === 'window') {
+      /*
+       * ウィンドウは複数を 1 枚へまとめられるため、組み立て方が他のモードと根本的に違う。
+       * 映像の数もキャンバスの寸法も、対象を掴んでみるまで決まらない。
+       * 先に器を用意してから寸法を決め直す。
+       */
+      const scene = await buildWindowScene(obs, profile, profile.cursor.capture, async (next) => {
+        // 記録中は寸法を変えられない。始めたときの寸法のまま組み立てる。
+        if (this.isRecordingNow()) return
+        await this.applyLiveSettings(obs, profile, next)
+      })
+
+      videoRecreated = scene.recreated
+      if (!this.isRecordingNow()) canvas = scene.canvas
+    } else {
+      await this.applyLiveSettings(obs, profile, canvas)
+      // 映像ソースを作り直したときは、重ね合わせを映像より手前へ積み直す必要がある。
+      videoRecreated = await buildVideoSource(obs, profile, this.displays)
+      canvas = await this.fitCanvasToSource(obs, profile, canvas)
+    }
 
     await applyAudioProfile(obs, profile.audio)
     await applyOverlays(
@@ -283,6 +301,16 @@ export class ObsWebSocketEngine implements CaptureEngine {
 
   async takeScreenshot(profile: CaptureProfile): Promise<string> {
     assertCaptureTarget(profile)
+
+    /*
+     * 組み立ての途中で撮ると、ひとつ前の設定のままの絵が残る。
+     *
+     * 並べ方や対象を変えると、寸法を測り直してキャンバスを組み替えるまでに 1 秒以上かかる。
+     * その間に撮れてしまうと、切り替えたのに前の見え方で保存される。録画は開始時に
+     * 組み立てを待っているので、静止画も同じところで待たせる。
+     */
+    await this.applyChain.catch(() => undefined)
+
     const obs = this.requireObs()
     ensureWritableOutput(profile.outputDirectory)
 
@@ -356,9 +384,9 @@ export class ObsWebSocketEngine implements CaptureEngine {
   }
 
   /**
-   * ウィンドウとゲームは、掴んだ映像の大きさへキャンバスを合わせ直す。
+   * ゲームは、掴んだ映像の大きさへキャンバスを合わせ直す。
    *
-   * これらは対象の大きさが設定から決まらないため、いったんモニタの大きさで組み立てる。
+   * 対象の大きさが設定から決まらないため、いったんモニタの大きさで組み立てる。
    * そのままにすると、ウィンドウの外側が余白として残り、モニタと同じ大きさのファイルの
    * 隅にウィンドウが写る（静止画では余白が透明になる）。撮りたいのはウィンドウであって、
    * ウィンドウの載っている画面ではない。
@@ -370,21 +398,29 @@ export class ObsWebSocketEngine implements CaptureEngine {
     profile: CaptureProfile,
     canvas: { width: number; height: number }
   ): Promise<{ width: number; height: number }> {
-    if (profile.sourceKind !== 'window' && profile.sourceKind !== 'game') return canvas
-    if (this.currentState.status === 'recording' || this.currentState.status === 'paused') {
-      return canvas
-    }
+    if (profile.sourceKind !== 'game') return canvas
+    if (this.isRecordingNow()) return canvas
 
-    const measured = await measureVideoSize(obs)
+    const measured = await measureSourceSize(obs, SOURCE_NAME.video)
     if (!measured) return canvas
     if (measured.width === canvas.width && measured.height === canvas.height) return canvas
 
     log.info('取り込んだ映像の大きさへキャンバスを合わせます', { from: canvas, to: measured })
     await this.applyLiveSettings(obs, profile, measured)
     // キャンバスが変わったので、映像の収まりも新しい寸法で取り直す。
-    await fitVideoToCanvas(obs, measured)
+    await placeSceneItem(obs, SOURCE_NAME.video, {
+      x: 0,
+      y: 0,
+      width: measured.width,
+      height: measured.height
+    })
 
     return measured
+  }
+
+  /** 記録中はキャンバスの寸法を変えられない。出力の途中で変えると記録そのものが壊れる。 */
+  private isRecordingNow(): boolean {
+    return this.currentState.status === 'recording' || this.currentState.status === 'paused'
   }
 
   /** OBS 再起動なしで反映できる設定だけを WebSocket 経由で更新する。 */
@@ -393,6 +429,8 @@ export class ObsWebSocketEngine implements CaptureEngine {
     profile: CaptureProfile,
     canvas: { width: number; height: number }
   ): Promise<void> {
+    log.info('キャンバスの寸法を設定します', canvas)
+
     await obs.call('SetVideoSettings', {
       baseWidth: canvas.width,
       baseHeight: canvas.height,
@@ -509,3 +547,4 @@ function readElectronDisplays(): DisplaySource[] {
     isPrimary: display.id === primary.id
   }))
 }
+

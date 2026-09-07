@@ -53,6 +53,15 @@ export class HotkeyHook {
   /** 押しっぱなしの間に何度も通知しないための記録。 */
   private readonly pressed = new Set<HotkeyAction>()
 
+  /**
+   * 記録中に押された修飾キー。
+   *
+   * 修飾キーは、それ自体を割り当てたいのか、次に来るキーと組み合わせたいのかが
+   * 押した時点では決まらない。押した瞬間に確定させると「Ctrl + F9」を登録できず、
+   * Ctrl を押した時点で「Ctrl」になってしまう。判断がつくまで保留する。
+   */
+  private pendingModifier: HotkeyBinding | null = null
+
   /** マウス移動を間引くための最終送信時刻。 */
   private lastMoveAt = 0
 
@@ -101,10 +110,12 @@ export class HotkeyHook {
   beginCapture(): void {
     this.capturing = true
     this.pressed.clear()
+    this.pendingModifier = null
   }
 
   cancelCapture(): void {
     this.capturing = false
+    this.pendingModifier = null
   }
 
   private readonly handleKeyDown = (event: UiohookKeyboardEvent): void => {
@@ -114,6 +125,15 @@ export class HotkeyHook {
     const binding = normalizeSelfModifier(toBinding('key', event.keycode, event))
 
     if (this.capturing) {
+      /*
+       * 修飾キーはここで決めない。この後に本体のキーが来れば組み合わせになり、
+       * 来ないまま離されればそれ自体が割り当てになる。どちらかは押した時点では分からない。
+       */
+      if (isModifierCode(binding.code)) {
+        this.pendingModifier = binding
+        return
+      }
+
       this.capture(binding)
       return
     }
@@ -122,8 +142,17 @@ export class HotkeyHook {
   }
 
   private readonly handleKeyUp = (event: UiohookKeyboardEvent): void => {
-    if (this.capturing) return
-    this.match(normalizeSelfModifier(toBinding('key', event.keycode, event)), false)
+    const binding = normalizeSelfModifier(toBinding('key', event.keycode, event))
+
+    if (this.capturing) {
+      // 保留していた修飾キーが、本体のキーを挟まずに離された。単体での割り当てと決まる。
+      if (this.pendingModifier && isSameInput(this.pendingModifier, binding)) {
+        this.capture(this.pendingModifier)
+      }
+      return
+    }
+
+    this.match(binding, false)
   }
 
   private readonly handleMouseDown = (event: UiohookMouseEvent): void => {
@@ -163,6 +192,7 @@ export class HotkeyHook {
 
   private capture(binding: HotkeyBinding): void {
     this.capturing = false
+    this.pendingModifier = null
     this.events.onCaptured(binding)
   }
 

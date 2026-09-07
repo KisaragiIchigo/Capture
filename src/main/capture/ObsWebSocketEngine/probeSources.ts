@@ -2,6 +2,7 @@ import type { OBSWebSocket } from 'obs-websocket-js'
 import type { DisplaySource, WindowSource } from '@shared/types'
 import { createLogger } from '@main/lib/logger'
 import { removeInputAndWait } from './removeInput'
+import { parseObsWindowId } from './obsWindowId'
 
 const log = createLogger('obs-probe')
 
@@ -151,21 +152,10 @@ export async function probeWindows(obs: OBSWebSocket, sceneName: string): Promis
     items
       .map((item) => {
         const raw = String(item.itemValue)
-        const [title = '', className = '', executable = ''] = raw.split(':')
-        return {
-          id: raw,
-          title: decodeObsWindowField(title),
-          className: decodeObsWindowField(className),
-          executable: decodeObsWindowField(executable)
-        }
+        return { id: raw, ...parseObsWindowId(raw) }
       })
       .filter((w) => w.executable.length > 0)
   )
-}
-
-/** OBS は window 値の中の記号を # + 16 進でエスケープしている。 */
-function decodeObsWindowField(value: string): string {
-  return value.replace(/#(3A|23)/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
 }
 
 /** 接続されている映像入力（Webカメラ、キャプチャボード）の一覧。 */

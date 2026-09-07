@@ -10,9 +10,21 @@ export const SCENE_NAME = 'Capture'
 /** 録画対象ソースにアプリ側で固定名を付ける。OBS 内の名前を境界の外へ出さないため。 */
 export const SOURCE_NAME = {
   video: 'capture-video',
+  /** 映像で埋まらない部分を塗る面。透過を選んだときは置かない。 */
+  backdrop: 'capture-backdrop',
   systemAudio: 'capture-system-audio',
   microphone: 'capture-microphone'
 } as const
+
+/**
+ * 2 つ目以降のウィンドウのソース名。
+ *
+ * 1 つ目は SOURCE_NAME.video をそのまま使う。ウィンドウを 1 つだけ選んだ場合に、
+ * これまでと同じ名前のままにしておくため。
+ */
+export function windowSourceName(index: number): string {
+  return index === 0 ? SOURCE_NAME.video : `${SOURCE_NAME.video}-${index + 1}`
+}
 
 /** アプリの書式と OBS の書式の対応。 */
 const FILENAME_TOKENS: Record<string, string> = {

@@ -57,7 +57,8 @@ export function HotkeyList({
 
       <p className="text-fluid-xs leading-relaxed text-slate-400">
         欄をクリックしてから、割り当てたいキーかマウスのボタンを押してください。
-        マウスのサイドボタンや Ctrl などの修飾キー単体も指定できます。Esc で取り消せます。
+        Ctrl や Shift を押しながら押すと、組み合わせで登録できます。マウスのサイドボタンや、
+        修飾キーだけを押して離した場合の単体指定にも対応しています。Esc で取り消せます。
         {hasConflict ? (
           <span className="text-amber-300">
             {' '}

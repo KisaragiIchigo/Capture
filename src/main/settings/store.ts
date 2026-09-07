@@ -6,7 +6,8 @@ import {
   type CaptureProfile,
   type EncoderCapability,
   type EncoderId,
-  type StillImageConfig
+  type StillImageConfig,
+  type WindowCaptureConfig
 } from '@shared/types'
 import { createLogger } from '@main/lib/logger'
 import { screen } from 'electron'
@@ -16,7 +17,7 @@ import { defaultOutputDirectory, settingsFile } from '@main/lib/paths'
 const log = createLogger('settings')
 
 /** 設定ファイルの構造を変えたら上げる。読み込み時に旧版なら既定値へ寄せる。 */
-const SETTINGS_VERSION = 6
+const SETTINGS_VERSION = 7
 
 /** ハードウェアエンコーダが使えなかったときに降りていく順序。 */
 const ENCODER_FALLBACK_ORDER: EncoderId[] = [
@@ -52,6 +53,12 @@ function defaultProfile(): CaptureProfile {
     },
     cursor: {
       capture: true
+    },
+    windowCapture: {
+      ids: [],
+      layout: 'as-is',
+      background: 'system',
+      gap: 0
     },
     overlays: {
       webcam: {
@@ -223,6 +230,7 @@ function mergeWithDefaults(raw: Partial<AppSettings>): AppSettings {
         microphone: { ...base.profile.audio.microphone, ...raw.profile?.audio?.microphone }
       },
       cursor: { ...base.profile.cursor, ...raw.profile?.cursor },
+      windowCapture: mergeWindowCapture(base.profile.windowCapture, raw.profile),
       stillImage,
       overlays: {
         webcam: { ...base.profile.overlays.webcam, ...raw.profile?.overlays?.webcam },
@@ -235,6 +243,25 @@ function mergeWithDefaults(raw: Partial<AppSettings>): AppSettings {
     hotkeys: { ...base.hotkeys, ...raw.hotkeys },
     behavior: { ...base.behavior, ...raw.behavior }
   }
+}
+
+/**
+ * ウィンドウ録画の設定を引き継ぐ。
+ *
+ * 版 7 より前は対象を 1 つだけ持ち、profile.sourceId に入れていた。選んでいた
+ * ウィンドウをそのまま引き継げるよう、控えが無い場合は sourceId から拾い上げる。
+ */
+function mergeWindowCapture(
+  base: WindowCaptureConfig,
+  raw: Partial<CaptureProfile> | undefined
+): WindowCaptureConfig {
+  const merged = { ...base, ...raw?.windowCapture }
+
+  if (raw?.windowCapture === undefined && raw?.sourceKind === 'window' && raw.sourceId) {
+    merged.ids = [raw.sourceId]
+  }
+
+  return merged
 }
 
 /** 版 6 より前の静止画設定。連続撮影の間隔を 1 つの数値で持ち、0 を無効の意味に使っていた。 */

@@ -15,3 +15,7 @@ build/engine/
 
 # 型チェックのキャッシュ。ローカルの絶対パスを含むため持たない。
 *.tsbuildinfo
+
+# 作業記録と、作者だけが使う道具。配布物ではないため追跡しない。
+changelogs.json
+GithubPush.bat
