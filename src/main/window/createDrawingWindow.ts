@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from 'electron'
-import type { CaptureProfile } from '@shared/types'
+import type { CaptureProfile, WindowBounds } from '@shared/types'
 import { appIcon, drawingEntry, preloadScript } from '@main/lib/paths'
 
 /**
@@ -9,18 +9,17 @@ import { appIcon, drawingEntry, preloadScript } from '@main/lib/paths'
  * 手が届かなくなり、録画を止めることすらできなくなる。
  * 範囲の外は描いても映らないので、覆う理由もない。
  *
+ * 道具のパレットはこの窓に持たない。パレットを録画から外すには窓ごと分けるしかなく、
+ * 除外の単位がウィンドウだからで、同じ窓に入れると描いた線まで映らなくなる。
+ *
  * OBS のソースとして持たないのは、描いている最中の見え方と録画結果を
  * 必ず一致させるため。別経路で合成すると位置や縮尺がずれる余地が生まれる。
  */
-export function createDrawingWindow(profile: CaptureProfile): BrowserWindow {
-  const area = resolveDrawingArea(profile)
+export function createDrawingWindow(area: WindowBounds): BrowserWindow {
   const icon = appIcon()
 
   const window = new BrowserWindow({
-    x: area.x,
-    y: area.y,
-    width: area.width,
-    height: area.height,
+    ...area,
     show: false,
     frame: false,
     transparent: true,
@@ -51,27 +50,20 @@ export function createDrawingWindow(profile: CaptureProfile): BrowserWindow {
   return window
 }
 
-interface Area {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 /**
  * 描ける範囲を決める。
  *
  * 範囲指定なら枠の内側だけ。それ以外は対象モニタの全面になる。
  * ウィンドウやゲームを録る場合、その位置は動くため追えない。モニタ全体を対象にする。
  *
- * 窓を作るときだけでなく、録画範囲が変わったときの追従にも使う。
- * 同じ計算を 2 か所に持つと、片方だけ直したときに描いた位置と映る位置が食い違う。
+ * 窓を作るときだけでなく、録画範囲が変わったときの追従と、パレットの置き場所の
+ * 計算にも使う。同じ計算を 2 か所に持つと、片方だけ直したときに描いた位置と映る位置、
+ * あるいはパレットの逃がし先が食い違う。
  */
-export function resolveDrawingArea(profile: CaptureProfile): Area {
-  if (profile.sourceKind === 'region' && profile.region) return profile.region
+export function resolveDrawingArea(profile: CaptureProfile): WindowBounds {
+  if (profile.sourceKind === 'region' && profile.region) return { ...profile.region }
 
-  const display = resolveDisplay(profile.sourceId)
-  return display.bounds
+  return { ...resolveDisplay(profile.sourceId).bounds }
 }
 
 /** 録画対象のモニタへ重ねる。特定できない場合は主モニタを使う。 */

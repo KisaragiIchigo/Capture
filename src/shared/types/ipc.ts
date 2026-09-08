@@ -1,3 +1,4 @@
+import type { DrawingCommand } from './drawing'
 import type { WindowBounds } from './finder'
 import type { HotkeyAction, HotkeyBinding } from './hotkey'
 import type {
@@ -49,7 +50,9 @@ export const IPC = {
   drawing: {
     open: 'drawing:open',
     close: 'drawing:close',
-    toggle: 'drawing:toggle'
+    toggle: 'drawing:toggle',
+    command: 'drawing:command',
+    paletteReady: 'drawing:paletteReady'
   },
   finder: {
     open: 'finder:open',
@@ -88,6 +91,7 @@ export const IPC = {
     finderVisibility: 'event:finderVisibility',
     finderMode: 'event:finderMode',
     drawingVisibility: 'event:drawingVisibility',
+    drawingCommand: 'event:drawingCommand',
     pointerStart: 'event:pointerStart',
     pointerMove: 'event:pointerMove',
     pointerClick: 'event:pointerClick',
@@ -166,6 +170,15 @@ export interface CaptureBridge {
     close: () => Promise<void>
     /** 開いていれば閉じ、閉じていれば開く。判断は Main が行う。 */
     toggle: () => Promise<void>
+    /** パレットから描画面への指示。道具の選択と取り消し・全消しがここを通る。 */
+    command: (command: DrawingCommand) => Promise<void>
+    /**
+     * パレットの中身の高さを報せる。窓の高さがこれで決まり、報せるまで表に出ない。
+     *
+     * 高さを定数で持つと DOM の実寸と食い違い、欠けるのは下端の「描画を終える」になる。
+     * 閉じる手段が消える壊れ方をするため、実測した値だけを使う。
+     */
+    paletteReady: (height: number) => Promise<void>
   }
   finder: {
     /** 範囲指定ファインダーを開く。すでに開いていれば前面へ出す。 */
@@ -250,6 +263,8 @@ export interface CaptureBridge {
     /** ファインダーが今どの取り込み方に付いているか。枠を描くかどうかがこれで決まる。 */
     onFinderMode: (listener: (kind: CaptureSourceKind) => void) => () => void
     onDrawingVisibility: (listener: (visible: boolean) => void) => () => void
+    /** パレットからの指示。描画面だけが受け取る。 */
+    onDrawingCommand: (listener: (command: DrawingCommand) => void) => () => void
     /** レーザーポインターの表示が始まった。そのときの窓の左上が届く。 */
     onPointerStart: (listener: (origin: PointerOrigin) => void) => () => void
     /** 表示中のマウス位置。画面座標と、そのときの窓の左上が届く。 */

@@ -1,10 +1,10 @@
 import { useCallback, type ReactElement } from 'react'
 import { FINDER_BORDER, FINDER_OUTSET } from '@shared/types'
+import { useClickThrough } from '@renderer/hooks/useClickThrough'
 import { useShutterFlash } from '@renderer/hooks/useShutterFlash'
 import { useFinderSettings } from './parts/useFinderSettings'
 import { FinderBar } from './parts/FinderBar'
 import { ResizeEdges } from './parts/ResizeEdges'
-import { useClickThrough } from './parts/useClickThrough'
 import { useFinderDrag } from './parts/useFinderDrag'
 import { useFinderState } from './parts/useFinderState'
 

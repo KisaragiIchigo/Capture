@@ -41,8 +41,8 @@ const TOOLS: Array<{ tool: DrawTool; label: string; icon: ReactNode }> = [
 /**
  * 描画ツールの一覧。
  *
- * パレット自体はクリックを受け取る必要があるので、描画面より手前へ置く。
- * 画面の端に寄せるのは、描きたい対象の上へ被せないため。
+ * 窓の中身そのもの。窓の大きさはこの並びの実寸から決まるため、ここで位置を決めない。
+ * 幅は PALETTE_WIDTH と一致する（色の 2 列 40px + 内側の余白 12px）。
  */
 export function ToolPalette({
   tool,
@@ -56,7 +56,7 @@ export function ToolPalette({
   onClose
 }: ToolPaletteProps): ReactElement {
   return (
-    <div className="pointer-events-auto absolute right-4 top-1/2 flex -translate-y-1/2 flex-col gap-1 rounded-lg border border-white/[0.08] bg-base-alt/95 p-1.5 shadow-panel backdrop-blur-md">
+    <div className="flex w-full flex-col gap-1 rounded-lg border border-white/[0.08] bg-base-alt/95 p-1.5 shadow-panel">
       {TOOLS.map((entry) => (
         <PaletteButton
           key={entry.tool}

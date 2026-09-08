@@ -49,6 +49,8 @@ export default defineConfig({
           finder: resolve('src/renderer/finder.html'),
           // 画面へ描き込む窓も独立した透過ウィンドウなので、エントリを分ける。
           drawing: resolve('src/renderer/drawing.html'),
+          // 描き込みの道具は録画から外す窓に置くため、描画面とはエントリごと分ける。
+          palette: resolve('src/renderer/palette.html'),
           // レーザーポインターは常にクリックスルーで、描き込みとは別の窓になる。
           pointer: resolve('src/renderer/pointer.html'),
           // 撮れたことを知らせる札も、どの窓の生死にも依存しない独立した窓にする。

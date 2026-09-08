@@ -1,3 +1,5 @@
+import type { WindowBounds } from './finder'
+
 /**
  * 画面へ直接描き込む機能の型。
  *
@@ -52,6 +54,81 @@ export const DRAW_COLORS = [
 ] as const
 
 export const DRAW_WIDTHS = [2, 4, 8, 16] as const
+
+/** 開いた直後に選ばれている道具。描画面とパレットが同じ値から始まるよう共有する。 */
+export const DEFAULT_DRAW_TOOL: DrawTool = 'pen'
+
+/**
+ * パレット窓の幅。中身の実寸と一致させる（色の 2 列 40px + 内側の余白 12px）。
+ * 窓の幅が中身より狭いと、道具の並びが窓の縁で切れる。
+ */
+export const PALETTE_WIDTH = 52
+
+/** 録画範囲や画面の縁からパレットを離す量。 */
+export const PALETTE_MARGIN = 8
+
+/**
+ * 高さが決まるまでの仮の値。
+ *
+ * パレットの高さは道具・色・太さの数で変わるため、定数で持つと DOM の実寸と食い違う。
+ * 食い違ったときに欠けるのは下端の「描画を終える」で、閉じる手段が消える壊れ方をする。
+ * 窓はこの仮の高さで作り、Renderer が中身を測って報せてきた高さへ直してから表に出す。
+ */
+export const PALETTE_PROVISIONAL_HEIGHT = 600
+
+/**
+ * パレット窓の置き場所を決める。
+ *
+ * 録画範囲の外側へ逃がす。窓自体は録画から除外してあるので写り込みはしないが、
+ * 範囲の上に被せると、録りたい対象がユーザーからも見えなくなる。
+ * 左右どちらにも幅が無いときだけ、範囲の内側の右端へ置く。
+ *
+ * @param area 録画される矩形。範囲指定なら枠の内側、それ以外は対象モニタの全面。
+ * @param workArea 置いてよい範囲。対象モニタの作業領域を渡す。
+ * @param height 実測したパレットの高さ。
+ */
+export function buildPaletteBounds(
+  area: WindowBounds,
+  workArea: WindowBounds,
+  height: number
+): WindowBounds {
+  const right = area.x + area.width + PALETTE_MARGIN
+  const left = area.x - PALETTE_MARGIN - PALETTE_WIDTH
+
+  const x =
+    right + PALETTE_WIDTH + PALETTE_MARGIN <= workArea.x + workArea.width
+      ? right
+      : left - PALETTE_MARGIN >= workArea.x
+        ? left
+        : // どちらへも逃がせない。範囲が画面を埋めているので、内側の右端へ寄せる。
+          area.x + area.width - PALETTE_MARGIN * 2 - PALETTE_WIDTH
+
+  // 縦は範囲の中央へ。画面からはみ出す場合は縁で止める。道具が押せなくなるため。
+  const centered = area.y + Math.round((area.height - height) / 2)
+  const top = workArea.y + PALETTE_MARGIN
+  const bottom = Math.max(top, workArea.y + workArea.height - height - PALETTE_MARGIN)
+
+  return {
+    x,
+    y: Math.min(Math.max(centered, top), bottom),
+    width: PALETTE_WIDTH,
+    height
+  }
+}
+
+/**
+ * パレットから描画面への指示。
+ *
+ * パレットと描画面は別の窓になった。パレットを録画から除外するには窓ごと分けるしかなく、
+ * 除外の単位がウィンドウだからで、描いた線まで一緒に消えては意味がない。
+ * 選択の実体はパレットが持ち、描画面へはこの指示だけを流す。
+ */
+export type DrawingCommand =
+  | { kind: 'tool'; tool: DrawTool }
+  | { kind: 'color'; color: string }
+  | { kind: 'width'; width: number }
+  | { kind: 'undo' }
+  | { kind: 'clear' }
 
 /** マーカーは軌跡を太く描く。同じ太さ指定でもペンより存在感を出す。 */
 export const MARKER_WIDTH_SCALE = 3

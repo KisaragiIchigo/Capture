@@ -152,6 +152,11 @@ export function HelpDialog({ open, onOpenChange, hotkeys }: HelpDialogProps): Re
                 ウィンドウを重ねても対象自身の描画は変わらないため、映像には入りません。
                 描き込みも録画に残したい場合は、フルスクリーンか指定した領域で録画してください。
               </p>
+              <p className="pt-2 text-fluid-xs leading-relaxed text-slate-400">
+                この表の例外が、操作のためだけに浮かべているウィンドウです。ファインダー（枠と操作
+                バー）と描き込みの道具のパレットは録画から除外しているため、どの取り込み方でも
+                映像や静止画には写りません。
+              </p>
             </Section>
 
             <Section title="画面への描き込み">
@@ -164,12 +169,16 @@ export function HelpDialog({ open, onOpenChange, hotkeys }: HelpDialogProps): Re
                   文字は、置きたい位置を押すと入力欄が開きます。Enter で確定、Shift + Enter で改行です。
                 </Bullet>
                 <Bullet>
-                  描画中は下のアプリを操作できません。パレットの「操作に戻す」を選ぶか、
-                  Esc で閉じてください。
+                  描画中は録画範囲の内側で下のアプリを操作できません。パレットの「操作に戻す」を
+                  選ぶか、Esc で閉じてください。
                 </Bullet>
                 <Bullet>
-                  覆うのは録画される範囲だけです。範囲の外は描いても映らないうえ、
-                  覆うと操作バーへ手が届かなくなるためです。
+                  描けるのは録画される範囲の内側だけです。範囲の外は描いても映りません。
+                </Bullet>
+                <Bullet>
+                  道具のパレットは録画から除外した別のウィンドウです。取り込み方に関わらず、
+                  パレット自体が映像や静止画へ写ることはありません。置き場所も録画範囲の外側を
+                  選ぶため、録りたい対象がパレットで隠れることもありません。
                 </Bullet>
               </ul>
             </Section>
@@ -203,6 +212,10 @@ export function HelpDialog({ open, onOpenChange, hotkeys }: HelpDialogProps): Re
                 <Bullet>
                   範囲が狭いときは、並びきらない操作が畳まれます。設定ウィンドウのツールバーには
                   同じ操作がすべて並んでいます。
+                </Bullet>
+                <Bullet>
+                  枠と操作バーは録画から除外しています。フルスクリーンで録画している最中でも、
+                  バーが映像へ写り込むことはありません。
                 </Bullet>
                 <Bullet>
                   右端の赤い × はアプリごと終了します。録画中でも、録画を正しく終えてから

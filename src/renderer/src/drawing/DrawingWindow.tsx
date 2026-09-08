@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
-import { MIN_SHAPE_DISTANCE, type DrawTool, type Point } from '@shared/types'
+import { DEFAULT_DRAW_TOOL, MIN_SHAPE_DISTANCE, type DrawTool, type Point } from '@shared/types'
+import { useClickThrough } from '@renderer/hooks/useClickThrough'
 import { DrawingCanvas } from './parts/DrawingCanvas'
-import { ToolPalette } from './parts/ToolPalette'
 import { useStrokes } from './parts/useStrokes'
 
 /** ツールごとのカーソル。何が起きるかを触る前に伝える。 */
@@ -24,17 +24,26 @@ interface TextDraft {
 /**
  * 画面へ直接描き込む窓。
  *
- * 画面全体を覆う透過ウィンドウで、ここに描いた内容はそのまま録画へ写る。
- * 描画中は下のアプリを操作できない。操作へ戻すには「操作に戻す」を選ぶか窓を閉じる。
+ * 録画される範囲を覆う透過ウィンドウで、ここに描いた内容はそのまま録画へ写る。
+ * 道具のパレットは別の窓にある。パレットを録画から外すには窓ごと分けるしかなく、
+ * ここに置くと描いた線まで映らなくなるため。選択の変更はパレットから指示として届く。
+ *
+ * 描画中は下のアプリを操作できない。操作へ戻すにはパレットで「操作に戻す」を選ぶか
+ * 窓を閉じる。「操作に戻す」の間はこの窓自体をクリックスルーさせる。
  */
 export function DrawingWindow(): ReactElement {
-  const [tool, setTool] = useState<DrawTool>('pen')
+  const [tool, setTool] = useState<DrawTool>(DEFAULT_DRAW_TOOL)
   const [color, setColor] = useState<string>('#facc15')
   const [width, setWidth] = useState<number>(4)
   const [markerOpacity, setMarkerOpacity] = useState(0.6)
   const [textDraft, setTextDraft] = useState<TextDraft | null>(null)
+  /** 押している間はクリックスルーの切り替えを止める。切り替わると pointerup を取り逃す。 */
+  const [pressing, setPressing] = useState(false)
 
   const strokes = useStrokes()
+
+  // 開いた瞬間から描けるよう、受け取る側で始める。無視で始めると最初の 1 クリックが下へ抜ける。
+  useClickThrough(pressing, false)
 
   // 描画の設定はメイン側の設定を引き継ぐ。読めなければ初期値のまま続ける。
   useEffect(() => {
@@ -55,7 +64,31 @@ export function DrawingWindow(): ReactElement {
     void window.capture.drawing.close()
   }, [])
 
-  // Esc で閉じる。全画面を覆う窓なので、抜ける手段が常に要る。
+  // パレットからの指示。選択の実体はパレットが持ち、ここは受け取って反映するだけ。
+  useEffect(
+    () =>
+      window.capture.events.onDrawingCommand((command) => {
+        switch (command.kind) {
+          case 'tool':
+            setTool(command.tool)
+            return
+          case 'color':
+            setColor(command.color)
+            return
+          case 'width':
+            setWidth(command.width)
+            return
+          case 'undo':
+            strokes.undo()
+            return
+          case 'clear':
+            strokes.clear()
+        }
+      }),
+    [strokes.undo, strokes.clear]
+  )
+
+  // Esc で閉じる。録画範囲を覆う窓なので、抜ける手段が常に要る。
   useEffect(() => {
     const handleKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape' && !textDraft) close()
@@ -95,6 +128,7 @@ export function DrawingWindow(): ReactElement {
 
     // 引きずる操作は canvas の外へ出ても追いたい。
     event.currentTarget.setPointerCapture(event.pointerId)
+    setPressing(true)
 
     if (tool === 'eraser') {
       strokes.eraseAt(point)
@@ -116,6 +150,7 @@ export function DrawingWindow(): ReactElement {
   }
 
   const handleUp = (): void => {
+    setPressing(false)
     if (!strokes.draft) return
 
     // 図形はクリックだけで確定させない。点のような矩形や矢印が残ると邪魔になる。
@@ -135,8 +170,12 @@ export function DrawingWindow(): ReactElement {
     strokes.commit()
   }
 
+  /*
+   * 「操作に戻す」の間だけ印を外し、窓ごとクリックスルーさせる。
+   * 常に受け取ると、描画を閉じるまで録画範囲の中のアプリを一切触れなくなる。
+   */
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" data-interactive={tool === 'select' ? undefined : true}>
       <DrawingCanvas
         strokes={strokes.strokes}
         draft={strokes.draft}
@@ -176,18 +215,6 @@ export function DrawingWindow(): ReactElement {
           className="absolute min-w-[12rem] resize-none rounded border border-teal-400/60 bg-black/70 px-2 py-1 font-sans outline-none"
         />
       ) : null}
-
-      <ToolPalette
-        tool={tool}
-        color={color}
-        width={width}
-        onToolChange={setTool}
-        onColorChange={setColor}
-        onWidthChange={setWidth}
-        onUndo={strokes.undo}
-        onClear={strokes.clear}
-        onClose={close}
-      />
     </div>
   )
 }

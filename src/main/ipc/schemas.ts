@@ -215,3 +215,18 @@ export const finderBoundsSchema = z.object({
   width: z.number().int().min(16).max(16384),
   height: z.number().int().min(16).max(16384)
 })
+
+/** パレットから描画面への指示。色はそのまま canvas へ渡るため書式ごと縛る。 */
+export const drawingCommandSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('tool'),
+    tool: z.enum(['select', 'pen', 'marker', 'line', 'arrow', 'rect', 'text', 'eraser'])
+  }),
+  z.object({ kind: z.literal('color'), color: z.string().regex(/^#[0-9a-fA-F]{6}$/) }),
+  z.object({ kind: z.literal('width'), width: z.number().int().min(1).max(64) }),
+  z.object({ kind: z.literal('undo') }),
+  z.object({ kind: z.literal('clear') })
+])
+
+/** 実測したパレットの高さ。窓の高さになるため、画面に載る範囲へ収める。 */
+export const paletteHeightSchema = z.number().int().min(16).max(4320)

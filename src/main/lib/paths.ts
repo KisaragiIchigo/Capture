@@ -102,6 +102,15 @@ export function drawingEntry(): { devUrl: string | null; file: string } {
   }
 }
 
+/** 描き込みの道具を並べる窓の読み込み先。録画から外すため描画面とは別の窓になる。 */
+export function paletteEntry(): { devUrl: string | null; file: string } {
+  const base = process.env['ELECTRON_RENDERER_URL']
+  return {
+    devUrl: base ? `${base}/palette.html` : null,
+    file: join(__dirname, '../renderer/palette.html')
+  }
+}
+
 /** レーザーポインターの窓の読み込み先。 */
 export function pointerEntry(): { devUrl: string | null; file: string } {
   const base = process.env['ELECTRON_RENDERER_URL']

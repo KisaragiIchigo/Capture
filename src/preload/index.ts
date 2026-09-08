@@ -6,6 +6,7 @@ import {
   type CaptureBridge,
   type CaptureProfile,
   type CaptureSourceKind,
+  type DrawingCommand,
   type EngineState,
   type HotkeyAction,
   type HotkeyBinding,
@@ -75,7 +76,10 @@ const bridge: CaptureBridge = {
   drawing: {
     open: () => ipcRenderer.invoke(IPC.drawing.open) as Promise<void>,
     close: () => ipcRenderer.invoke(IPC.drawing.close) as Promise<void>,
-    toggle: () => ipcRenderer.invoke(IPC.drawing.toggle) as Promise<void>
+    toggle: () => ipcRenderer.invoke(IPC.drawing.toggle) as Promise<void>,
+    command: (command) => ipcRenderer.invoke(IPC.drawing.command, command) as Promise<void>,
+    paletteReady: (height: number) =>
+      ipcRenderer.invoke(IPC.drawing.paletteReady, height) as Promise<void>
   },
   finder: {
     open: () => ipcRenderer.invoke(IPC.finder.open) as Promise<void>,
@@ -118,6 +122,7 @@ const bridge: CaptureBridge = {
     onFinderVisibility: (listener) => subscribe<boolean>(IPC.events.finderVisibility, listener),
     onFinderMode: (listener) => subscribe<CaptureSourceKind>(IPC.events.finderMode, listener),
     onDrawingVisibility: (listener) => subscribe<boolean>(IPC.events.drawingVisibility, listener),
+    onDrawingCommand: (listener) => subscribe<DrawingCommand>(IPC.events.drawingCommand, listener),
     onPointerStart: (listener) => subscribe<PointerOrigin>(IPC.events.pointerStart, listener),
     onPointerMove: (listener) => subscribe<PointerMovePayload>(IPC.events.pointerMove, listener),
     onPointerEnd: (listener) => subscribe<void>(IPC.events.pointerEnd, () => listener()),

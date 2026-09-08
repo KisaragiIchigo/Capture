@@ -3,6 +3,136 @@
   "project": "Capture",
   "entries": [
     {
+      "date": "2026-09-08",
+      "title": "ファインダーも録画から除外し、操作用の窓が映像へ入らないようにした",
+      "summary": "パレットへ入れた除外の仕組みをファインダーにも掛けた。フルスクリーンとウィンドウの姿では操作バーが録画対象の上に浮かび、そのまま映像へ入っていた。判定と適用は main/lib/captureExclusion.ts へ集約し、パレットとファインダーの双方から呼ぶ。描き込みの canvas とレーザーポインターは映ることが目的なので掛けない。",
+      "purpose": "ユーザーからの依頼。パレットの対応後、同じ仕組みを操作バーにも掛けたいとのこと。",
+      "decisions": [
+        {
+          "topic": "除外の判定の置き場所",
+          "chosen": "main/lib/captureExclusion.ts に excludeFromCapture として集約する",
+          "reason": "パレットとファインダーの 2 か所で同じ判定（Windows のビルド番号）を持つことになった。片方だけ直すと、除外できる環境の判断が窓ごとに食い違う。どの窓に掛けてよくてどの窓に掛けてはいけないかの理由も、集約先に 1 か所だけ書く。"
+        },
+        {
+          "topic": "ファインダー窓ごと外してよいか",
+          "chosen": "窓ごと外す",
+          "reason": "ファインダーの見えている部分は操作バーと枠線・掴み代だけで、枠線と掴み代は録画範囲の外側に描いてあるため元から映らない。窓の中に「映ってほしいもの」が無いので、部分的に残す理由がない。"
+        },
+        {
+          "topic": "録画中にファイル名を出すかどうか",
+          "chosen": "従来どおり伏せたままにする（発光だけで知らせる）",
+          "reason": "除外が効くならファイル名を出しても映らないが、build 19041 未満では除外が掛からず文字列がそのまま映像に残る。環境で挙動が変わる合図にすると、どちらの見え方が正しいのか説明できなくなる。"
+        }
+      ],
+      "files": {
+        "created": [
+          "src/main/lib/captureExclusion.ts（除外の適用と、効かない環境の判定）"
+        ],
+        "modified": [
+          "src/main/window/createFinderWindow.ts（生成時に excludeFromCapture を呼ぶ）",
+          "src/main/window/createPaletteWindow.ts（自前の判定をやめ、集約先を呼ぶ）",
+          "src/renderer/src/components/HelpDialog/index.tsx（写る条件の表の例外と、操作バーの説明）",
+          "README.md（機能ハイライト・ツリー・「操作用の窓を録画から外す」節の新設と、どの窓を外すかの表）"
+        ]
+      },
+      "impact": "画面に浮かぶアプリ自身の UI のうち、ファインダー（枠・操作バー）と道具のパレットが録画・静止画・スクリーンショットへ入らなくなった。操作バーごと録画したい用途（このアプリ自体の操作説明など）には応えられない。撮れたことを知らせる札は従来どおり除外せず、置き場所と録画中の抑止で避ける。",
+      "verified": [
+        "npm run typecheck（Main / Renderer 双方）通過",
+        "npm run build 通過",
+        "除外を掛ける窓と掛けない窓の一覧をコード検索で確認。setContentProtection を呼ぶのは captureExclusion.ts のみで、呼び出し元は createFinderWindow と createPaletteWindow の 2 つ。描き込み・ポインター・札・メインウィンドウには掛かっていない"
+      ],
+      "unverified": [
+        "実機での録画・静止画に操作バーが入らないこと",
+        "透過ウィンドウかつクリックスルー切り替えを行う窓へ除外を掛けたときの副作用の有無"
+      ]
+    },
+    {
+      "date": "2026-09-08",
+      "title": "道具のパレットを録画から除外した別ウィンドウへ分け、取り込み方に関わらず写らないようにした",
+      "summary": "パレットが描画面と同じ窓にあり、その窓は録画範囲とぴったり同じ大きさで作られていたため、パレットは必ず範囲の内側に入って映像へ写り込んでいた。パレットを独立したウィンドウへ分け、Electron の setContentProtection（Windows の SetWindowDisplayAffinity / WDA_EXCLUDEFROMCAPTURE）でキャプチャから除外した。フルスクリーンのように逃げ場が無い取り込み方でもパレットは写らない。置き場所は写らないこととは別に、録画範囲の外側を選ぶ。あわせて「操作に戻す」を選んでいる間は描画面をクリックスルーさせ、名前どおり下のアプリを操作できるようにした。",
+      "purpose": "ユーザーからの報告と、その後の追加要求。「ペンとかのツールバーがファインダーフレームの内側に入って映り込むの望ましくない」「別モニターがないパターンもあるだろうから、フルスクリーンだろうとなんだろうとパレット自体は映らないようにしてほしい」。",
+      "decisions": [
+        {
+          "topic": "パレットを映さない方法",
+          "chosen": "パレットを独立ウィンドウへ分け、setContentProtection でキャプチャから除外する",
+          "rejected": [
+            "描き込み窓を録画範囲より広く作り、パレットを範囲の外へ置くだけにする（本作業で一度実装したが差し戻し）",
+            "マルチモニタ環境で、録画対象でないモニタへパレットを逃がす",
+            "ファインダーの操作バーへ描画ツールを統合する"
+          ],
+          "reason": "置き場所で避ける方法は、フルスクリーン取り込みでは成立しない。モニタに映るものがすべて録画対象なので、範囲の外という場所が存在しないため。別モニタへの退避も、1 画面環境では逃げ場が無い。キャプチャからの除外だけが取り込み方に依存せず成立する。除外の単位はウィンドウなので、描画面と同じ窓に置いたままでは使えない（描いた線まで映らなくなる）。操作バーへの統合は、バーの幅が録画範囲の幅に縛られる（最小 76px）ため道具が並びきらない。"
+        },
+        {
+          "topic": "古い Windows での扱い",
+          "chosen": "build 19041（Windows 10 2004）未満では除外を掛けず、置き場所だけで避ける",
+          "reason": "WDA_EXCLUDEFROMCAPTURE が効くのは 2004 以降。それ以前は WDA_MONITOR と同じ扱いになり、除外ではなく黒い矩形として録画へ入る。パレットが写り込むより、録画に黒い矩形が焼き付くほうが悪い。"
+        },
+        {
+          "topic": "2 つの窓での状態の持ち方",
+          "chosen": "選択（道具・色・太さ）の実体はパレットが持ち、描画面へは指示だけを Main 経由で流す",
+          "rejected": [
+            "Main が選択状態を持ち、双方が読み書きする"
+          ],
+          "reason": "選択を変えるのはパレットだけなので、一方向の指示で食い違いが起こらない。Main に持たせると読み書きの経路が増えるわりに、防げる食い違いが増えない。初期値は双方が同じ設定（profile.drawing）から読み、既定の道具は共有定数 DEFAULT_DRAW_TOOL に置いて一致させる。"
+        },
+        {
+          "topic": "パレット窓の高さの決め方",
+          "chosen": "Renderer が中身の実寸を測って Main へ報せ、その高さへ直してから窓を表に出す",
+          "rejected": [
+            "パレットの高さを共有定数として持つ"
+          ],
+          "reason": "高さは道具・色・太さの数で変わる。定数だと道具を増やしたときに DOM の実寸と食い違い、欠けるのは下端の「描画を終える」になる。閉じる手段が消える壊れ方をするため、実測以外を使わない。道具の大きさはすべて固定値なので、文字の読み込みで測り直しになることもない。"
+        },
+        {
+          "topic": "パレット窓の前面化",
+          "chosen": "focusable: false にして、掴んでも前面を奪わない窓にする",
+          "reason": "前面を奪うと、描画面の Esc（閉じる手段）と、文字入力中の入力欄がその場で切れる。Windows では WS_EX_NOACTIVATE が付くだけで、マウス入力は届く。"
+        }
+      ],
+      "files": {
+        "created": [
+          "src/renderer/palette.html（パレット窓のエントリ）",
+          "src/renderer/src/palette/main.tsx",
+          "src/renderer/src/palette/PaletteWindow.tsx（選択の保持と指示の送出、高さの実測）",
+          "src/renderer/src/palette/parts/ToolPalette.tsx（drawing/parts から移設。位置決めを持たない並びだけの部品へ）",
+          "src/main/window/createPaletteWindow.ts（除外の判定と窓の生成）",
+          "src/renderer/src/hooks/useClickThrough.ts（finder/parts から移設。initialIgnore を追加）"
+        ],
+        "modified": [
+          "src/shared/types/drawing.ts（DEFAULT_DRAW_TOOL / PALETTE_WIDTH / PALETTE_MARGIN / PALETTE_PROVISIONAL_HEIGHT / buildPaletteBounds / DrawingCommand を追加）",
+          "src/shared/types/ipc.ts（drawing:command と drawing:paletteReady、event:drawingCommand）",
+          "src/preload/index.ts（drawing.command / drawing.paletteReady / events.onDrawingCommand）",
+          "src/main/lib/paths.ts（paletteEntry）",
+          "src/main/ipc/schemas.ts（drawingCommandSchema / paletteHeightSchema）",
+          "src/main/window/createDrawingWindow.ts（resolveDrawingArea の戻り値を WindowBounds へ。窓は範囲ぴったりのまま）",
+          "src/main/ipc/handlers/drawingHandlers.ts（2 つの窓の開閉を揃え、指示の中継とパレットの置き直しを持つ）",
+          "src/renderer/src/drawing/DrawingWindow.tsx（パレットを持たない。指示を受け取り、select 中はクリックスルー）",
+          "src/renderer/src/finder/FinderWindow.tsx（useClickThrough の import 先）",
+          "src/renderer/src/components/HelpDialog/index.tsx（パレットが写らないことと、操作に戻すの説明）",
+          "electron.vite.config.ts（palette エントリの追加）",
+          "README.md（機能ハイライト・ツリー・描き込みの解説・写る条件の表の例外）"
+        ],
+        "deleted": [
+          "src/renderer/src/drawing/parts/ToolPalette.tsx（palette/parts へ移設）",
+          "src/renderer/src/finder/parts/useClickThrough.ts（hooks/ へ移設）"
+        ]
+      },
+      "impact": "描き込みは 2 つの窓で構成されるようになった。開閉は必ず対で行い、片方だけ閉じられた場合ももう片方を畳む。パレットは録画・静止画・スクリーンショットのいずれにも入らないため、撮れた画にパレットが必要な用途（操作説明の録画など）には応えられない。描画面の大きさは従来どおり録画範囲と一致する。",
+      "verified": [
+        "npm run typecheck（Main / Renderer 双方）通過",
+        "npm run build 通過。out/renderer/palette.html が生成され、資産の参照が ./assets/... の相対パスであること（file:// 起動で解決できる形）を確認",
+        "置き場所の二重導出。範囲の右外に置く場合 x = 範囲右端 + 8 で、右端 + 8 + 52 + 8 が作業領域に収まるときだけ選ばれる。左外は x = 範囲左端 - 60 で、そこから 8 引いた値が作業領域内に残るときだけ。どちらも数式と具体値の追跡が一致",
+        "フルスクリーン取り込みでは左右どちらの条件も満たさず、範囲内側の右端（従来と同じ見え方）へ落ちることを条件式から確認"
+      ],
+      "unverified": [
+        "focusable: false のパレット窓でボタンが実際に押せること（WS_EX_NOACTIVATE でもマウス入力は届く前提。実機での最優先確認事項）",
+        "setContentProtection を掛けた窓が実際に録画・静止画へ入らないこと",
+        "透過ウィンドウに setContentProtection を掛けたときの見え方",
+        "録画範囲を画面の左右端いっぱいへ寄せたときの逃がし先の切り替わり",
+        "DPI 拡大率 125% 以上での窓の位置と、実測した高さの反映"
+      ]
+    },
+    {
       "date": "2026-09-07",
       "title": "OBS を同梱したインストーラを配るための GPL v2 対応を整えた",
       "summary": "アプリ本体のライセンスを MIT に統一し（package.json が UNLICENSED のまま LICENSE ファイルと食い違っていた）、README にライセンスの章とリリース公開時の手順を書いた。［情報］画面のライセンス欄には、本体が MIT であること、同梱している OBS が未改変であること、GPL v2 全文の収録場所を追記し、同梱した版のソースコードを既定のブラウザで開くボタンを置いた。外部 URL を開くための IPC（system:openExternal）を新設し、Main 側で http と https 以外を弾く。 その後、公開済みの Release 0.1.0 に OBS 同梱のインストーラ（244.5MB）が既に添付されていることが分かったため、README のライセンス章を「これから配るときの手順」から「ソースの公開とインストーラの配布は別の話」という区分に書き直した。あわせて engine.json の版が unknown のまま固定されるバグを直した。",

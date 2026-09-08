@@ -8,6 +8,7 @@ import {
   type RegionRect,
   type WindowBounds
 } from '@shared/types'
+import { excludeFromCapture } from '@main/lib/captureExclusion'
 import { appIcon, finderEntry, preloadScript } from '@main/lib/paths'
 
 /**
@@ -17,6 +18,9 @@ import { appIcon, finderEntry, preloadScript } from '@main/lib/paths'
  * 数値入力より直感的な代わりに、ウィンドウ座標と録画範囲の対応がずれると
  * 「見えている枠と録れる範囲が違う」という最悪の壊れ方をするので、
  * 換算は shared/types/finder.ts の関数だけに任せる。
+ *
+ * この窓は録画から外す。枠線と掴み代は範囲の外にあるので元から写らないが、
+ * 操作バーは範囲指定以外の姿では録画対象の上に浮かぶ。バーは録りたいものではない。
  */
 export function createFinderWindow(region: RegionRect | null): BrowserWindow {
   // 範囲指定でないときは枠を持たず、操作バーだけを画面上部へ置く。
@@ -51,6 +55,8 @@ export function createFinderWindow(region: RegionRect | null): BrowserWindow {
       backgroundThrottling: false
     }
   })
+
+  excludeFromCapture(window)
 
   // 全画面のゲームより手前に出したいので、通常の alwaysOnTop より上の層に置く。
   window.setAlwaysOnTop(true, 'screen-saver')
